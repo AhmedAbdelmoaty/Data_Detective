@@ -1,28 +1,43 @@
 import { useGameStore } from "@/store/gameStore";
-import { FileText, CheckCircle, AlertTriangle, Send } from "lucide-react";
+import { FileText, CheckCircle, AlertTriangle, Send, Lightbulb, ThumbsUp, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 
 export default function Report() {
-  const { currentCase, pinnedEvidenceIds, submitSolution, gameStatus } = useGameStore();
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [result, setResult] = useState<{ correct: boolean; feedback: string } | null>(null);
+  const { 
+    currentCase, 
+    confirmedHypothesisId, 
+    eliminatedHypothesisIds,
+    getHypothesisEvidence,
+    submitSolution 
+  } = useGameStore();
+  
+  const [result, setResult] = useState<{ correct: boolean; feedback: string; detailedExplanation?: string } | null>(null);
+
+  const confirmedHypothesis = currentCase.hypotheses.find(h => h.id === confirmedHypothesisId);
+  const { supporting, refuting } = confirmedHypothesisId 
+    ? getHypothesisEvidence(confirmedHypothesisId) 
+    : { supporting: [], refuting: [] };
+
+  const activeHypotheses = currentCase.hypotheses.filter(
+    h => !eliminatedHypothesisIds.includes(h.id)
+  );
 
   const handleSubmit = () => {
-    if (!selectedOptionId) return;
-    const res = submitSolution(selectedOptionId);
+    const res = submitSolution();
     setResult(res);
   };
 
   if (result) {
     return (
-      <div className="h-full flex items-center justify-center p-8">
+      <div className="h-full flex items-center justify-center p-8 overflow-auto">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className={cn(
-            "max-w-2xl w-full p-12 rounded-3xl border-2 text-center shadow-2xl",
+            "max-w-3xl w-full p-12 rounded-3xl border-2 text-center shadow-2xl",
             result.correct ? "bg-green-950/30 border-green-500/50" : "bg-red-950/30 border-destructive/50"
           )}
         >
@@ -36,9 +51,18 @@ export default function Report() {
             {result.correct ? "القضية حُلّت بنجاح!" : "استنتاج خاطئ"}
           </h1>
           
-          <p className="text-xl leading-relaxed opacity-90 mb-8">
+          <p className="text-xl leading-relaxed opacity-90 mb-6">
             {result.feedback}
           </p>
+
+          {result.detailedExplanation && (
+            <div className="text-right bg-black/20 p-6 rounded-xl mb-8 border border-white/10">
+              <h3 className="font-bold text-lg mb-3 text-accent">التفسير التفصيلي:</h3>
+              <p className="text-sm leading-relaxed whitespace-pre-line opacity-80">
+                {result.detailedExplanation}
+              </p>
+            </div>
+          )}
 
           <button 
             onClick={() => window.location.reload()}
@@ -59,71 +83,99 @@ export default function Report() {
           التقرير النهائي
         </h1>
         <p className="text-muted-foreground mt-2">
-          اختر الاستنتاج الصحيح بناءً على الأدلة التي قمت بتثبيتها.
+          راجع تحليلك وقدم استنتاجك النهائي لحل القضية.
         </p>
       </header>
 
-      {/* Pinned Evidence Review */}
-      <div className="bg-secondary/20 p-6 rounded-xl border border-border/50">
-        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-          <span className="w-2 h-6 bg-accent rounded-full"></span>
-          الأدلة الداعمة (المثبتة)
+      <div className="bg-secondary/30 rounded-xl p-6 border border-border/50 space-y-6">
+        <h3 className="font-bold text-lg flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-accent" />
+          الفرضية المؤكدة
         </h3>
-        {pinnedEvidenceIds.length === 0 ? (
-          <p className="text-destructive text-sm">لم تقم بتثبيت أي أدلة! عد إلى غرفة الأدلة واختر الحقائق المهمة.</p>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {pinnedEvidenceIds.map(id => {
-              const ev = currentCase.evidence.find(e => e.id === id);
-              return (
-                <div key={id} className="bg-card border border-accent/30 px-4 py-2 rounded-lg text-sm shadow-sm">
-                  {ev?.title}
+        
+        {confirmedHypothesis ? (
+          <div className="bg-green-950/30 border border-green-500/30 rounded-xl p-6">
+            <h4 className="font-bold text-xl text-green-400 mb-2">{confirmedHypothesis.title}</h4>
+            <p className="text-muted-foreground">{confirmedHypothesis.description}</p>
+            
+            <div className="mt-4 pt-4 border-t border-green-500/20">
+              <div className="flex items-center gap-2 text-sm text-green-400 mb-2">
+                <ThumbsUp className="w-4 h-4" />
+                <span>الأدلة الداعمة ({supporting.length})</span>
+              </div>
+              {supporting.length === 0 ? (
+                <p className="text-destructive text-sm">لم تربط أي أدلة داعمة بهذه الفرضية!</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {supporting.map(ev => (
+                    <span key={ev.id} className="text-xs bg-green-500/20 text-green-300 px-3 py-1 rounded-full">
+                      {ev.title}
+                    </span>
+                  ))}
                 </div>
-              );
-            })}
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-6 text-center">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+            <p className="text-destructive font-bold">لم تختر فرضية نهائية بعد!</p>
+            <p className="text-muted-foreground text-sm mt-2">
+              توجه إلى غرفة الفرضيات لتأكيد الفرضية التي تعتقد أنها السبب الحقيقي.
+            </p>
+            <Link href="/hypotheses">
+              <button className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 transition-all">
+                الذهاب لغرفة الفرضيات
+              </button>
+            </Link>
           </div>
         )}
       </div>
 
-      {/* Options */}
-      <div className="space-y-4">
-        <h3 className="font-bold text-lg">ما هو السبب الرئيسي للمشكلة؟</h3>
-        {currentCase.solution.options.map((option) => (
-          <button
-            key={option.id}
-            onClick={() => setSelectedOptionId(option.id)}
-            className={cn(
-              "w-full text-right p-6 rounded-xl border-2 transition-all duration-200",
-              selectedOptionId === option.id
-                ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
-                : "bg-card border-border hover:border-primary/50"
-            )}
-          >
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                selectedOptionId === option.id ? "border-primary" : "border-muted-foreground"
-              )}>
-                {selectedOptionId === option.id && <div className="w-3 h-3 bg-primary rounded-full" />}
-              </div>
-              <span className={cn(
-                "text-lg",
-                selectedOptionId === option.id ? "font-bold text-primary" : "text-foreground"
-              )}>
-                {option.text}
-              </span>
-            </div>
-          </button>
-        ))}
+      <div className="bg-secondary/20 p-6 rounded-xl border border-border/50">
+        <h3 className="font-bold text-lg mb-4">ملخص التحليل</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-card p-4 rounded-lg border border-border/30">
+            <div className="text-muted-foreground mb-1">الفرضيات المستبعدة</div>
+            <div className="font-bold text-2xl text-foreground">{eliminatedHypothesisIds.length}</div>
+          </div>
+          <div className="bg-card p-4 rounded-lg border border-border/30">
+            <div className="text-muted-foreground mb-1">الفرضيات المتبقية</div>
+            <div className="font-bold text-2xl text-foreground">{activeHypotheses.length}</div>
+          </div>
+          <div className="bg-card p-4 rounded-lg border border-border/30">
+            <div className="text-muted-foreground mb-1">أدلة داعمة للفرضية</div>
+            <div className="font-bold text-2xl text-green-400">{supporting.length}</div>
+          </div>
+          <div className="bg-card p-4 rounded-lg border border-border/30">
+            <div className="text-muted-foreground mb-1">أدلة نافية للفرضية</div>
+            <div className="font-bold text-2xl text-red-400">{refuting.length}</div>
+          </div>
+        </div>
       </div>
+
+      {activeHypotheses.length > 1 && confirmedHypothesis && (
+        <div className="bg-yellow-950/20 border border-yellow-500/30 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
+            <div>
+              <p className="text-yellow-400 font-bold">تنبيه</p>
+              <p className="text-sm text-muted-foreground">
+                لا يزال لديك {activeHypotheses.length - 1} فرضيات أخرى غير مستبعدة. 
+                للحصول على تحليل أقوى، قم باستبعاد الفرضيات الخاطئة بالأدلة.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end pt-8">
         <button
           onClick={handleSubmit}
-          disabled={!selectedOptionId || pinnedEvidenceIds.length === 0}
+          disabled={!confirmedHypothesisId}
           className={cn(
             "px-8 py-4 rounded-xl font-bold text-lg flex items-center gap-3 transition-all",
-            !selectedOptionId || pinnedEvidenceIds.length === 0
+            !confirmedHypothesisId
               ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
               : "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-1"
           )}
