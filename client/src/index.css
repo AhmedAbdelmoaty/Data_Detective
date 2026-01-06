@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Slate/Blue Professional Palette */
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+
+  /* Primary Blue - trustworthy, corporate */
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+
+  /* Secondary - subtle slate */
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  /* Muted text */
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  /* Accent - Gold/Amber for investigation clues */
+  --accent: 45 93% 47%;
+  --accent-foreground: 222 47% 11%;
+
+  /* Destructive - Red for danger/errors */
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 32% 17%;
+  --input: 217 32% 17%;
+  --ring: 224 76% 48%;
+
+  --radius: 0.5rem;
+
+  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-arabic);
+    direction: rtl;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Glassmorphism utilities */
+.glass {
+  @apply bg-background/80 backdrop-blur-md border border-white/10;
+}
+
+.glass-card {
+  @apply bg-card/50 backdrop-blur-sm border border-border/50 shadow-lg hover:border-primary/50 transition-all duration-300;
+}

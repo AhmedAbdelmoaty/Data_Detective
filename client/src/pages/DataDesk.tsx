@@ -1,0 +1,108 @@
+import { useGameStore } from "@/store/gameStore";
+import { DataTable } from "@/components/DataTable";
+import { Database, TrendingUp, BarChart3, AlertCircle } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
+import { motion } from "framer-motion";
+
+export default function DataDesk() {
+  const { currentCase } = useGameStore();
+
+  // Find the specific datasets (Hardcoded for prototype visualization based on case001)
+  const salesData = currentCase.dataSets.find(d => d.name.includes("المبيعات"))?.rows || [];
+  const marketingData = currentCase.dataSets.find(d => d.name.includes("التسويق"))?.rows || [];
+
+  return (
+    <div className="p-8 space-y-8">
+      <header>
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+          <Database className="w-8 h-8 text-primary" />
+          مركز البيانات
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          الأرقام لا تكذب. حلل البيانات لكشف الحقيقة المخفية.
+        </p>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Chart 1: Sales vs Leads */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-xl"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-accent" />
+              تحليل العملاء المحتملين مقابل المبيعات
+            </h3>
+          </div>
+          <div className="h-[300px] w-full" dir="ltr">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickFormatter={(str) => str.slice(5)} />
+                <YAxis yAxisId="left" stroke="#94a3b8" fontSize={12} />
+                <YAxis yAxisId="right" orientation="right" stroke="#eab308" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                  itemStyle={{ color: '#f8fafc' }}
+                />
+                <Legend />
+                <Line yAxisId="left" type="monotone" dataKey="leads" name="العملاء (Leads)" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
+                <Line yAxisId="right" type="monotone" dataKey="sales" name="المبيعات (Sales)" stroke="#eab308" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-sm text-destructive-foreground">
+              ملاحظة: لاحظ الانفصال الحاد بين منحنى العملاء ومنحنى المبيعات بدءاً من 1 أكتوبر.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Chart 2: Marketing Spend */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card p-6 rounded-xl"
+        >
+           <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              توزيع الميزانية والنقرات
+            </h3>
+          </div>
+          <div className="h-[300px] w-full" dir="ltr">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={marketingData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                <XAxis dataKey="channel" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip 
+                  cursor={{fill: '#ffffff05'}}
+                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                />
+                <Legend />
+                <Bar dataKey="cost" name="التكلفة ($)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="clicks" name="النقرات" fill="#10b981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="space-y-6">
+        {currentCase.dataSets.map((ds) => (
+          <DataTable 
+            key={ds.name}
+            title={ds.name} 
+            data={ds.rows} 
+            columns={Object.keys(ds.rows[0]).filter(k => k !== 'id')} 
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
