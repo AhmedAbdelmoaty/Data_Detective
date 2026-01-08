@@ -12,7 +12,6 @@ import Office from "@/pages/Office";
 import EvidenceRoom from "@/pages/EvidenceRoom";
 import DataDesk from "@/pages/DataDesk";
 import Interviews from "@/pages/Interviews";
-import HypothesisRoom from "@/pages/HypothesisRoom";
 import Report from "@/pages/Report";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -47,9 +46,6 @@ function Router() {
       </Route>
       <Route path="/interviews">
         <Layout><Interviews /></Layout>
-      </Route>
-      <Route path="/hypotheses">
-        <Layout><HypothesisRoom /></Layout>
       </Route>
       <Route path="/report">
         <Layout><Report /></Layout>

@@ -26,17 +26,17 @@ export default function Intro() {
         </div>
         
         <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight">
-          محلل <span className="text-primary">البيانات</span>
+          محقق <span className="text-primary">البيانات</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-          لعبة تحليل تعتمد على البيانات. حلل الأرقام، استجوب الشهود، واكشف الحقيقة المخفية خلف الرسوم البيانية.
+          لعبة تحقيق تعتمد على البيانات. حلل الأرقام، استجوب الشهود، واكشف الحقيقة المخفية خلف الرسوم البيانية.
         </p>
 
         <div className="bg-card/50 backdrop-blur-sm border border-border p-8 rounded-2xl mb-12 text-right">
           <h3 className="font-bold text-lg mb-4 text-accent">القضية 001: لغز شركة الأمل العقارية</h3>
           <p className="text-sm text-slate-300 leading-7">
-            شركة عقارية كبرى تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها التسويقية. بصفتك محقق بيانات، مهمتك هي الغوص في الأرقام ورسائل البريد الإلكتروني لتحديد السبب الحقيقي قبل إفلاس الشركة.
+            شركة عقارية كبرى تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها التسويقية "الفيروسي". بصفتك محقق بيانات، مهمتك هي الغوص في الأرقام ورسائل البريد الإلكتروني لتحديد السبب الحقيقي قبل إفلاس الشركة.
           </p>
         </div>
 

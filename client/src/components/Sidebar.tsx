@@ -6,8 +6,7 @@ import {
   Database, 
   Users, 
   FileText, 
-  LayoutDashboard,
-  Lightbulb
+  LayoutDashboard 
 } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 
@@ -16,8 +15,7 @@ const items = [
   { name: "غرفة الأدلة", icon: Search, path: "/evidence" },
   { name: "مركز البيانات", icon: Database, path: "/desk" },
   { name: "الاستجواب", icon: Users, path: "/interviews" },
-  { name: "غرفة الفرضيات", icon: Lightbulb, path: "/hypotheses" },
-  { name: "التقرير النهائي", icon: FileText, path: "/report" },
+  { name: "التحليل والاستنتاج", icon: FileText, path: "/report" },
 ];
 
 export function Sidebar() {
