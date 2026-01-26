@@ -43,6 +43,8 @@ export interface Evidence {
   type: 'document' | 'email' | 'report' | 'clue';
   cost: number; // Time cost to pin
   isKey: boolean; // Hidden from player, for internal logic/scoring
+  // Optional short note used in the final report (keeps the report human, not Q/A)
+  reportNote?: string;
 }
 
 export interface InterviewQuestion {
@@ -51,6 +53,8 @@ export interface InterviewQuestion {
   response: string; // Arabic response
   cost: number; // Time cost
   unlocks?: string; // ID of evidence or data it might unlock (optional)
+  // Optional short note used in the final report.
+  reportNote?: string;
 }
 
 export interface Stakeholder {
@@ -64,6 +68,24 @@ export interface Stakeholder {
 export interface DataInsight {
   id: string;
   description: string; // What pattern or insight this represents
+  // Optional short note used in the final report.
+  reportNote?: string;
+}
+
+// ===== Report Scoring (simple, Level 1) =====
+
+export type ReportItemKind = 'evidence' | 'interview' | 'data';
+export type ItemStrength = 'strong' | 'weak' | 'none';
+
+export interface CaseScoringItem {
+  kind: ReportItemKind;
+  id: string; // evidence.id | interviewQuestion.id | dataInsight.id
+  // In the report we show a human note (not raw Q/A)
+  reportText: string;
+  // For each hypothesis: how much this item SUPPORTS it (if chosen as final)
+  support: Record<string, ItemStrength>;
+  // For each hypothesis: how much this item helps ELIMINATE it
+  eliminate: Record<string, ItemStrength>;
 }
 
 // Player's justification for eliminating a hypothesis
@@ -101,6 +123,9 @@ export interface Case {
     feedbackCorrect: string;
     feedbackIncorrect: string;
   };
+
+  // Optional: scoring map used to generate a human "manager reply" at the end.
+  scoringItems?: CaseScoringItem[];
 }
 
 // === DB SCHEMA (Optional for prototype, but good practice) ===
