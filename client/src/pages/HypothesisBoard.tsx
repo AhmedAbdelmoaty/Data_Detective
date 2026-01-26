@@ -26,6 +26,7 @@ const iconMap: Record<string, typeof UserX> = {
   ServerCrash,
   Target,
   TrendingDown,
+  Users,
 };
 
 export default function HypothesisBoard() {
