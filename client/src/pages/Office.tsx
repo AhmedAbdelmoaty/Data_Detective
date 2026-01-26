@@ -45,7 +45,7 @@ export default function Office() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <Link href="/desk" className="
+              <Link href="/hypotheses" className="
                 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold 
                 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 
                 active:scale-95 transition-all flex items-center gap-2
