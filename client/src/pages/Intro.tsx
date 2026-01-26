@@ -30,22 +30,20 @@ export default function Intro() {
         </h1>
 
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-          لعبة تحليل تعتمد على البيانات. حلل الأرقام، استجوب الشهود، واكشف
-          الحقيقة المخفية خلف الرسوم البيانية.
+          تجربة تحقيق بسيطة تعتمد على المعلومات. شوف الملفات، اسأل الناس، وركّب الصورة لحد ما توصل لسبب واضح.
         </p>
 
         <div className="bg-card/50 backdrop-blur-sm border border-border p-8 rounded-2xl mb-12 text-right">
           <h3 className="font-bold text-lg mb-4 text-accent">
-            القضية 001: لغز شركة الأمل العقارية
+            القضية 001: شركة الأمل العقارية
           </h3>
           <p className="text-sm text-slate-300 leading-7">
-            شركة عقارية كبرى تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها
-            التسويقية. بصفتك محلل بيانات، مهمتك هي الغوص في الأرقام ورسائل
-            البريد الإلكتروني لتحديد السبب الحقيقي قبل إفلاس الشركة.
+            بعد حملة تسويق جديدة، الاستفسارات زادت… لكن المبيعات قلت.
+            المطلوب إنك تجمع معلومات كفاية وتقدّم تقرير واضح للإدارة.
           </p>
         </div>
 
-        <Link href="/hypotheses" onClick={startGame}>
+        <Link href="/office" onClick={startGame}>
           <button
             className="
             group relative px-10 py-5 bg-primary text-primary-foreground text-xl font-bold rounded-xl 
@@ -55,7 +53,7 @@ export default function Intro() {
             data-testid="button-start-game"
           >
             <span className="flex items-center gap-3">
-              قبول المهمة
+              ابدأ
               <Play className="w-6 h-6 fill-current" />
             </span>
           </button>
