@@ -39,6 +39,8 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
     if (exists) {
       setSelectedItems(selectedItems.filter(item => !(item.type === type && item.id === id)));
     } else {
+      // Level 1: keep it simple (max 2 reasons)
+      if (selectedItems.length >= 2) return;
       setSelectedItems([...selectedItems, { type, id }]);
     }
   };
