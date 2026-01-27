@@ -3,7 +3,7 @@ import { EvidenceCard } from "@/components/EvidenceCard";
 import { Search } from "lucide-react";
 
 export default function EvidenceRoom() {
-  const { currentCase, visitedEvidenceIds, visitEvidence } = useGameStore();
+  const { currentCase, visitedEvidenceIds, pinnedEvidenceIds, visitEvidence, togglePinEvidence } = useGameStore();
 
   return (
     <div className="p-8 h-full flex flex-col">
@@ -14,8 +14,14 @@ export default function EvidenceRoom() {
             غرفة الأدلة
           </h1>
           <p className="text-muted-foreground mt-2">
-            افتح الأدلة واقرأها كويس… كل دليل له تكلفة وقت.
+            اجمع الأدلة، ادرسها، وقم بتثبيت (Pin) الأدلة المهمة لبناء قضيتك.
           </p>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-muted-foreground mb-1">الأدلة المثبتة</div>
+          <div className="font-mono text-2xl font-bold text-accent">
+            {pinnedEvidenceIds.length} / 5
+          </div>
         </div>
       </header>
 
@@ -25,7 +31,9 @@ export default function EvidenceRoom() {
             key={ev.id}
             evidence={ev}
             isVisited={visitedEvidenceIds.includes(ev.id)}
+            isPinned={pinnedEvidenceIds.includes(ev.id)}
             onVisit={() => visitEvidence(ev.id, ev.cost)}
+            onPin={() => togglePinEvidence(ev.id)}
           />
         ))}
       </div>

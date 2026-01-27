@@ -26,7 +26,6 @@ const iconMap: Record<string, typeof UserX> = {
   ServerCrash,
   Target,
   TrendingDown,
-  Users,
 };
 
 export default function HypothesisBoard() {
@@ -83,7 +82,7 @@ export default function HypothesisBoard() {
           لوحة الفرضيات
         </h1>
         <p className="text-muted-foreground mt-2">
-          دي الاحتمالات المتاحة. تقدر تستبعد اللي مش ماشي مع المعلومات… وفي الآخر هتقدّم تقرير.
+          هذه هي التفسيرات المحتملة للمشكلة. اجمع المعلومات واستبعد ما لا يتوافق مع الحقائق.
         </p>
       </header>
 
@@ -99,13 +98,15 @@ export default function HypothesisBoard() {
           <span className="font-bold text-foreground">{discoveredCount}</span>
         </div>
 
-        <Link href="/report">
-          <div className="bg-accent/20 text-accent px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/30 transition-colors">
-            <Check className="w-4 h-4" />
-            <span className="font-medium">افتح التقرير</span>
-            <ArrowLeft className="w-4 h-4" />
-          </div>
-        </Link>
+        {remainingCount === 1 && (
+          <Link href="/report">
+            <div className="bg-accent/20 text-accent px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/30 transition-colors">
+              <Check className="w-4 h-4" />
+              <span className="font-medium">فرضية واحدة متبقية - قدم التقرير</span>
+              <ArrowLeft className="w-4 h-4" />
+            </div>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-auto">
@@ -199,7 +200,7 @@ export default function HypothesisBoard() {
 
       <div className="mt-6 p-4 bg-secondary/30 rounded-xl border border-border/30">
         <p className="text-sm text-muted-foreground mb-3">
-          افتح الأدلة، اسأل في المقابلات، وشوف البيانات… وبعدها استبعد اللي مش منطقي.
+          <span className="font-medium text-foreground">للاستبعاد:</span> يجب تحديد الأدلة أو المقابلات أو البيانات التي أقنعتك بأن الفرضية غير صحيحة.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link href="/evidence">

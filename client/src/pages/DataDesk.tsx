@@ -8,11 +8,8 @@ import { cn } from "@/lib/utils";
 export default function DataDesk() {
   const { currentCase, discoverDataInsight, discoveredDataInsightIds } = useGameStore();
 
-  // Level 1 case uses two simple charts:
-  // 1) الاستفسارات مقابل المبيعات (leads vs sales)
-  // 2) جودة الاستفسارات (category vs count)
-  const salesData = currentCase.dataSets.find(d => d.name.includes("الاستفسارات"))?.rows || [];
-  const qualityData = currentCase.dataSets.find(d => d.name.includes("جودة"))?.rows || [];
+  const salesData = currentCase.dataSets.find(d => d.name.includes("المبيعات"))?.rows || [];
+  const marketingData = currentCase.dataSets.find(d => d.name.includes("التسويق"))?.rows || [];
 
   const isInsightDiscovered = (id: string) => discoveredDataInsightIds.includes(id);
 
@@ -37,14 +34,14 @@ export default function DataDesk() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-lg flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-accent" />
-              تحليل الاستفسارات مقابل المبيعات
+              تحليل العملاء المحتملين مقابل المبيعات
             </h3>
           </div>
           <div className="h-[300px] w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickFormatter={(str) => str.slice(5)} />
                 <YAxis yAxisId="left" stroke="#94a3b8" fontSize={12} />
                 <YAxis yAxisId="right" orientation="right" stroke="#eab308" fontSize={12} />
                 <Tooltip 
@@ -52,7 +49,7 @@ export default function DataDesk() {
                   itemStyle={{ color: '#f8fafc' }}
                 />
                 <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="leads" name="الاستفسارات" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
+                <Line yAxisId="left" type="monotone" dataKey="leads" name="العملاء (Leads)" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
                 <Line yAxisId="right" type="monotone" dataKey="sales" name="المبيعات (Sales)" stroke="#eab308" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -68,21 +65,22 @@ export default function DataDesk() {
            <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-lg flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
-              جودة الاستفسارات
+              توزيع الميزانية والنقرات
             </h3>
           </div>
           <div className="h-[300px] w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={qualityData}>
+              <BarChart data={marketingData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="category" stroke="#94a3b8" fontSize={12} />
+                <XAxis dataKey="channel" stroke="#94a3b8" fontSize={12} />
                 <YAxis stroke="#94a3b8" fontSize={12} />
                 <Tooltip 
                   cursor={{fill: '#ffffff05'}}
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
                 />
                 <Legend />
-                <Bar dataKey="count" name="العدد" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="cost" name="التكلفة ($)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="clicks" name="النقرات" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

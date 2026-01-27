@@ -1,12 +1,14 @@
 import { Evidence } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { FileText, Mail, FileBarChart, Search } from "lucide-react";
+import { FileText, Mail, FileBarChart, Pin, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface EvidenceCardProps {
   evidence: Evidence;
   isVisited: boolean;
+  isPinned: boolean;
   onVisit: () => void;
+  onPin: () => void;
 }
 
 const icons = {
@@ -16,7 +18,7 @@ const icons = {
   clue: Search,
 };
 
-export function EvidenceCard({ evidence, isVisited, onVisit }: EvidenceCardProps) {
+export function EvidenceCard({ evidence, isVisited, isPinned, onVisit, onPin }: EvidenceCardProps) {
   const Icon = icons[evidence.type] || FileText;
 
   return (
@@ -32,6 +34,24 @@ export function EvidenceCard({ evidence, isVisited, onVisit }: EvidenceCardProps
       )}
       onClick={!isVisited ? onVisit : undefined}
     >
+      {/* Pin Button */}
+      {isVisited && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPin();
+          }}
+          className={cn(
+            "absolute top-3 left-3 z-10 p-2 rounded-full transition-all duration-200",
+            isPinned 
+              ? "bg-accent text-accent-foreground shadow-[0_0_15px_rgba(234,179,8,0.5)]" 
+              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+          )}
+        >
+          <Pin className={cn("w-4 h-4", isPinned && "fill-current")} />
+        </button>
+      )}
+
       {/* Content */}
       <div className="p-6 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-4">
@@ -72,6 +92,9 @@ export function EvidenceCard({ evidence, isVisited, onVisit }: EvidenceCardProps
         </div>
       )}
       
+      {isPinned && (
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-accent shadow-[0_-2px_10px_rgba(234,179,8,0.3)]" />
+      )}
     </motion.div>
   );
 }
