@@ -15,10 +15,10 @@ export default function Interviews() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
           <Users className="w-8 h-8 text-primary" />
-          غرفة الاستجواب
+          غرفة المقابلات
         </h1>
         <p className="text-muted-foreground mt-2">
-          استجوب الموظفين الرئيسيين. كل سؤال يكلف وقتاً، اختر بحكمة.
+          ناقش الموظفين الرئيسيين. كل سؤال يكلف وقتاً، اختر بحكمة.
         </p>
       </header>
 
