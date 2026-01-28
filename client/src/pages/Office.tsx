@@ -1,16 +1,16 @@
 import { useGameStore } from "@/store/gameStore";
 import { motion } from "framer-motion";
-import { Mail, ArrowRight, Clock, Lightbulb } from "lucide-react";
+import { Mail, ArrowRight, Clock } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Office() {
-  const { currentCase } = useGameStore();
+  const { currentCase, time } = useGameStore();
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">مكتب المدير</h1>
-        <p className="text-muted-foreground">تعريف سريع بالمشكلة والاحتمالات المتاحة</p>
+        <h1 className="text-3xl font-bold text-foreground">المكتب الرئيسي</h1>
+        <p className="text-muted-foreground">ملخص المهمة الحالية ورسائل الإدارة العليا</p>
       </header>
 
       <motion.div 
@@ -40,27 +40,8 @@ export default function Office() {
             <div className="bg-secondary/30 p-6 rounded-xl border border-white/5">
               <Mail className="w-5 h-5 text-muted-foreground mb-3" />
               <p className="text-lg leading-relaxed text-slate-200">
-                بعد الحملة الجديدة الاستفسارات زادت بشكل واضح… لكن المبيعات قلت.
-                <br />
-                عايزين نفهم السبب الحقيقي قبل ما نلوم أي فريق.
-                <br />
-                قدامنا شوية احتمالات… شوف اللي يثبت واللي ينفي، وبعدين ارجعلي بتقرير.
+                {currentCase.briefing.text}
               </p>
-            </div>
-
-            <div className="bg-card/40 p-6 rounded-xl border border-border/50">
-              <div className="flex items-center gap-2 mb-3 text-foreground font-bold">
-                <Lightbulb className="w-5 h-5 text-primary" />
-                <span>الاحتمالات اللي محتاجين نراجعها</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {currentCase.hypotheses.map((h) => (
-                  <div key={h.id} className="bg-secondary/30 rounded-xl p-4 border border-border/30">
-                    <div className="font-bold text-foreground">{h.title}</div>
-                    <div className="text-sm text-muted-foreground mt-1">{h.description}</div>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -76,6 +57,35 @@ export default function Office() {
           </div>
         </div>
       </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="glass-card p-6 rounded-xl border border-border/50">
+          <h3 className="font-bold text-lg mb-4 text-accent">تلميحات هامة</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground list-disc list-inside">
+            <li>الوقت هو أهم مورد لديك. لا تضيعه في أدلة تافهة.</li>
+            <li>استخدم البيانات للتحقق من أقوال الموظفين.</li>
+            <li>ابحث عن التناقضات بين "ما يقال" و "ما تظهره الأرقام".</li>
+          </ul>
+        </div>
+        
+        <div className="glass-card p-6 rounded-xl border border-border/50">
+          <h3 className="font-bold text-lg mb-4 text-primary">حالة النظام</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between text-sm">
+              <span>اتصال قاعدة البيانات</span>
+              <span className="text-green-500 font-mono">متصل</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>تشفير البيانات</span>
+              <span className="text-green-500 font-mono">نشط</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>الوقت المتبقي للتحقيق</span>
+              <span className="text-foreground font-mono">{time} وحدة زمنية</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
