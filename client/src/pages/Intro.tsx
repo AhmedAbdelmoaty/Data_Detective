@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Play, ShieldAlert } from "lucide-react";
 
 export default function Intro() {
-  const { startGame } = useGameStore();
+  const { resetGame } = useGameStore();
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 relative overflow-hidden">
@@ -29,9 +29,8 @@ export default function Intro() {
           محلل <span className="text-primary">البيانات</span>
         </h1>
 
-        <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-          تجربة تحليل بسيطة تعتمد على المعلومات. شوف الملفات، اسأل الناس، وركّب
-          الصورة لحد ما توصل لسبب واضح.
+        <p className="text-xl md:text-2xl text-muted-foreground mb-10 leading-relaxed">
+          مهمتك: تجمع معلومات، تراجع الفرضيات، وتوصل لاستنتاج مقنع.
         </p>
 
         <div className="bg-card/50 backdrop-blur-sm border border-border p-8 rounded-2xl mb-12 text-right">
@@ -39,23 +38,29 @@ export default function Intro() {
             القضية 001: شركة الأمل العقارية
           </h3>
           <p className="text-sm text-slate-300 leading-7">
-            شركة عقارية تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها
-            التسويقية. بصفتك محلل بيانات، مهمتك هي الغوص في البيانات لتحديد
-            السبب الحقيقي قبل إفلاس الشركة.
+            فيه حاجة مش منطقية حصلت بعد حملة جديدة: الاستفسارات زادت… لكن
+            المبيعات قلت. هتدخل تقابل المدير وتبدأ تجمع المعلومات قبل ما تقدّم
+            تقريرك.
           </p>
         </div>
 
-        <Link href="/office" onClick={startGame}>
+        <Link
+          href="/office"
+          onClick={() => {
+            // نبدأ جلسة جديدة نظيفة
+            resetGame();
+          }}
+        >
           <button
             className="
-            group relative px-10 py-5 bg-primary text-primary-foreground text-xl font-bold rounded-xl 
-            shadow-[0_0_40px_-10px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_-10px_rgba(59,130,246,0.7)]
-            transition-all duration-300 hover:scale-105 active:scale-95
-          "
+              group relative px-10 py-5 bg-primary text-primary-foreground text-xl font-bold rounded-xl 
+              shadow-[0_0_40px_-10px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_-10px_rgba(59,130,246,0.7)]
+              transition-all duration-300 hover:scale-105 active:scale-95
+            "
             data-testid="button-start-game"
           >
             <span className="flex items-center gap-3">
-              ابدأ
+              ابدأ التحقيق
               <Play className="w-6 h-6 fill-current" />
             </span>
           </button>
