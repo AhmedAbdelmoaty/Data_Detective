@@ -1,58 +1,58 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/store/gameStore";
 import { cn } from "@/lib/utils";
-import { 
-  X, 
-  FileText, 
-  MessageSquare, 
-  BarChart3, 
-  Check,
-  AlertTriangle,
-  ChevronLeft
-} from "lucide-react";
+import { X, FileText, MessageSquare, BarChart3, Check, AlertTriangle, ChevronLeft } from "lucide-react";
 import { Hypothesis } from "@shared/schema";
+
+type PickRef = { type: "evidence" | "interview" | "data"; id: string };
 
 interface EliminationModalProps {
   hypothesis: Hypothesis;
   onClose: () => void;
-  onConfirm: (justifications: { type: 'evidence' | 'interview' | 'data'; id: string }[]) => void;
+  onConfirm: (justifications: PickRef[]) => void;
 }
 
 export function EliminationModal({ hypothesis, onClose, onConfirm }: EliminationModalProps) {
-  const { 
-    getDiscoveredEvidence, 
-    getCompletedInterviews, 
-    getDiscoveredInsights 
-  } = useGameStore();
-  
-  const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'interview' | 'data'; id: string }[]>([]);
-  
+  const { getDiscoveredEvidence, getCompletedInterviews, getDiscoveredInsights } = useGameStore();
+
+  const [selectedItems, setSelectedItems] = useState<PickRef[]>([]);
+
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
   const discoveredInsights = getDiscoveredInsights();
-  
-  const hasAnyDiscoveries = discoveredEvidence.length > 0 || completedInterviews.length > 0 || discoveredInsights.length > 0;
 
-  const toggleItem = (type: 'evidence' | 'interview' | 'data', id: string) => {
-    const exists = selectedItems.some(item => item.type === type && item.id === id);
+  const hasAnyDiscoveries =
+    discoveredEvidence.length > 0 || completedInterviews.length > 0 || discoveredInsights.length > 0;
+
+  const toggleItem = (type: PickRef["type"], id: string) => {
+    const exists = selectedItems.some((item) => item.type === type && item.id === id);
+
     if (exists) {
-      setSelectedItems(selectedItems.filter(item => !(item.type === type && item.id === id)));
-    } else {
-      // Level 1: keep it simple (max 2 reasons)
-      if (selectedItems.length >= 2) return;
-      setSelectedItems([...selectedItems, { type, id }]);
+      setSelectedItems(selectedItems.filter((item) => !(item.type === type && item.id === id)));
+      return;
     }
+
+    // ✅ Level 1: حد أقصى 2
+    if (selectedItems.length >= 2) return;
+
+    setSelectedItems([...selectedItems, { type, id }]);
   };
 
-  const isSelected = (type: 'evidence' | 'interview' | 'data', id: string) => {
-    return selectedItems.some(item => item.type === type && item.id === id);
-  };
+  const isSelected = (type: PickRef["type"], id: string) =>
+    selectedItems.some((item) => item.type === type && item.id === id);
+
+  const canConfirm = selectedItems.length >= 1;
+
+  const selectedCountLabel = useMemo(() => {
+    if (selectedItems.length === 0) return "اختر 1 أو 2";
+    if (selectedItems.length === 1) return "مختار 1";
+    return "مختار 2";
+  }, [selectedItems.length]);
 
   const handleConfirm = () => {
-    if (selectedItems.length > 0) {
-      onConfirm(selectedItems);
-    }
+    if (!canConfirm) return;
+    onConfirm(selectedItems);
   };
 
   return (
@@ -65,20 +65,22 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+          exit={{ scale: 0.96, opacity: 0 }}
           className="bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
           <div className="p-6 border-b border-border">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold text-foreground">استبعاد فرضية</h2>
                 <p className="text-muted-foreground mt-1">
-                  اختر الأدلة أو المعلومات التي أقنعتك بأن هذه الفرضية غير صحيحة
+                  اختار <span className="font-medium text-foreground">معلومة أو اتنين</span> يوضحوا ليه الفرضية دي مش منطقية.
                 </p>
               </div>
+
               <button
                 onClick={onClose}
                 className="p-2 rounded-lg hover:bg-secondary transition-colors"
@@ -87,53 +89,73 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
-            
+
             <div className="mt-4 p-4 bg-destructive/10 rounded-xl border border-destructive/20">
               <div className="font-bold text-foreground">{hypothesis.title}</div>
               <div className="text-sm text-muted-foreground mt-1">{hypothesis.description}</div>
             </div>
+
+            <div className="mt-4 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-2 bg-secondary/40 px-3 py-1 rounded-full border border-border/40">
+                <Check className="w-3 h-3" />
+                {selectedCountLabel}
+              </span>
+              <span className="mr-2">— (حد أقصى 2)</span>
+            </div>
           </div>
 
+          {/* Body */}
           <div className="p-6 overflow-y-auto max-h-[50vh] space-y-6">
             {!hasAnyDiscoveries ? (
               <div className="text-center py-8">
                 <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-2">لم تجمع أي معلومات بعد</p>
+                <p className="text-foreground font-medium mb-2">لسه ماجمعتش معلومات</p>
                 <p className="text-muted-foreground text-sm">
-                  استكشف غرفة الأدلة، وتحدث مع الأشخاص، وحلل البيانات قبل استبعاد أي فرضية.
+                  روح غرفة الأدلة، اسأل في المقابلات، أو سجل رؤية من البيانات… وبعدين ارجع استبعد.
                 </p>
               </div>
             ) : (
               <>
+                {/* Evidence */}
                 {discoveredEvidence.length > 0 && (
                   <div>
                     <h3 className="font-bold text-foreground flex items-center gap-2 mb-3">
                       <FileText className="w-5 h-5 text-primary" />
-                      الأدلة المكتشفة
+                      الأدلة
                     </h3>
+
                     <div className="space-y-2">
                       {discoveredEvidence.map((ev) => (
                         <button
                           key={ev.id}
-                          onClick={() => toggleItem('evidence', ev.id)}
+                          onClick={() => toggleItem("evidence", ev.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('evidence', ev.id)
+                            isSelected("evidence", ev.id)
                               ? "border-primary bg-primary/10"
                               : "border-border/50 hover:border-primary/30"
                           )}
                           data-testid={`select-evidence-${ev.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('evidence', ev.id) ? "border-primary bg-primary" : "border-muted-foreground"
-                            )}>
-                              {isSelected('evidence', ev.id) && <Check className="w-3 h-3 text-primary-foreground" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("evidence", ev.id)
+                                  ? "border-primary bg-primary"
+                                  : "border-muted-foreground"
+                              )}
+                            >
+                              {isSelected("evidence", ev.id) && (
+                                <Check className="w-3 h-3 text-primary-foreground" />
+                              )}
                             </div>
+
                             <div>
                               <div className="font-medium text-foreground">{ev.title}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{ev.description}</div>
+                              <div className="text-sm text-muted-foreground mt-1 leading-6">
+                                {ev.description}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -142,36 +164,48 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                   </div>
                 )}
 
+                {/* Interviews (as info, not Q/A) */}
                 {completedInterviews.length > 0 && (
                   <div>
                     <h3 className="font-bold text-foreground flex items-center gap-2 mb-3">
                       <MessageSquare className="w-5 h-5 text-accent" />
-                      إجابات المقابلات
+                      معلومات من المقابلات
                     </h3>
+
                     <div className="space-y-2">
                       {completedInterviews.map((interview) => (
                         <button
                           key={interview.id}
-                          onClick={() => toggleItem('interview', interview.id)}
+                          onClick={() => toggleItem("interview", interview.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('interview', interview.id)
+                            isSelected("interview", interview.id)
                               ? "border-accent bg-accent/10"
                               : "border-border/50 hover:border-accent/30"
                           )}
                           data-testid={`select-interview-${interview.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('interview', interview.id) ? "border-accent bg-accent" : "border-muted-foreground"
-                            )}>
-                              {isSelected('interview', interview.id) && <Check className="w-3 h-3 text-accent-foreground" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("interview", interview.id)
+                                  ? "border-accent bg-accent"
+                                  : "border-muted-foreground"
+                              )}
+                            >
+                              {isSelected("interview", interview.id) && (
+                                <Check className="w-3 h-3 text-accent-foreground" />
+                              )}
                             </div>
+
                             <div>
-                              <div className="text-xs text-muted-foreground mb-1">{interview.stakeholderName}</div>
-                              <div className="font-medium text-foreground">{interview.text}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-2">"{interview.response}"</div>
+                              <div className="text-xs text-muted-foreground mb-1">
+                                {interview.stakeholderName}
+                              </div>
+                              <div className="text-sm text-muted-foreground leading-6">
+                                {interview.response}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -180,35 +214,42 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                   </div>
                 )}
 
+                {/* Data */}
                 {discoveredInsights.length > 0 && (
                   <div>
                     <h3 className="font-bold text-foreground flex items-center gap-2 mb-3">
                       <BarChart3 className="w-5 h-5 text-emerald-500" />
-                      رؤى البيانات
+                      معلومات من البيانات
                     </h3>
+
                     <div className="space-y-2">
                       {discoveredInsights.map((insight) => (
                         <button
                           key={insight.id}
-                          onClick={() => toggleItem('data', insight.id)}
+                          onClick={() => toggleItem("data", insight.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('data', insight.id)
+                            isSelected("data", insight.id)
                               ? "border-emerald-500 bg-emerald-500/10"
                               : "border-border/50 hover:border-emerald-500/30"
                           )}
                           data-testid={`select-insight-${insight.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('data', insight.id) ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground"
-                            )}>
-                              {isSelected('data', insight.id) && <Check className="w-3 h-3 text-white" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("data", insight.id)
+                                  ? "border-emerald-500 bg-emerald-500"
+                                  : "border-muted-foreground"
+                              )}
+                            >
+                              {isSelected("data", insight.id) && <Check className="w-3 h-3 text-white" />}
                             </div>
+
                             <div>
                               <div className="text-xs text-muted-foreground mb-1">{insight.datasetName}</div>
-                              <div className="font-medium text-foreground">{insight.description}</div>
+                              <div className="text-sm text-muted-foreground leading-6">{insight.description}</div>
                             </div>
                           </div>
                         </button>
@@ -220,6 +261,7 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
             )}
           </div>
 
+          {/* Footer */}
           <div className="p-6 border-t border-border flex items-center justify-between gap-4">
             <button
               onClick={onClose}
@@ -229,20 +271,20 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
               <ChevronLeft className="w-4 h-4" />
               <span>رجوع</span>
             </button>
-            
+
             <button
               onClick={handleConfirm}
-              disabled={selectedItems.length === 0}
+              disabled={!canConfirm}
               className={cn(
                 "flex items-center gap-2 px-6 py-2 rounded-lg transition-colors font-medium",
-                selectedItems.length > 0
+                canConfirm
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
               data-testid="button-confirm-elimination"
             >
               <X className="w-4 h-4" />
-              <span>تأكيد الاستبعاد ({selectedItems.length})</span>
+              <span>تأكيد الاستبعاد</span>
             </button>
           </div>
         </motion.div>
