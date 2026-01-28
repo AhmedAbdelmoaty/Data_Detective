@@ -1,258 +1,235 @@
 import { useMemo, useState } from "react";
-import { useGameStore } from "@/store/gameStore";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
-import {
-  UserX,
-  ServerCrash,
-  Target,
-  TrendingDown,
-  Check,
-  X,
-  RotateCcw,
-  Lightbulb,
-  ArrowLeft,
-  FileSearch,
-  Users,
-  BarChart3,
-  FileText,
-} from "lucide-react";
-import { Hypothesis } from "@shared/schema";
+import { useGameStore } from "@/store/gameStore";
 import { EliminationModal } from "@/components/EliminationModal";
-
-const iconMap: Record<string, typeof UserX> = {
-  UserX,
-  ServerCrash,
-  Target,
-  TrendingDown,
-  Users,
-};
+import { Hypothesis } from "@shared/schema";
+import {
+  Lightbulb,
+  XCircle,
+  CheckCircle,
+  FileText,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 export default function HypothesisBoard() {
   const {
     currentCase,
+    getRemainingHypotheses,
+    eliminations,
+    isHypothesisEliminated,
     eliminateHypothesis,
     restoreHypothesis,
-    isHypothesisEliminated,
-    getEliminationJustification,
-    getDiscoveredEvidence,
-    getCompletedInterviews,
-    getDiscoveredInsights,
+    resetGame,
   } = useGameStore();
 
-  const [selectedHypothesis, setSelectedHypothesis] = useState<Hypothesis | null>(null);
+  const remaining = getRemainingHypotheses();
+  const remainingCount = remaining.length;
+  const eliminatedCount = eliminations.length;
+  const total = currentCase.hypotheses.length;
 
-  const hypotheses = currentCase.hypotheses;
+  const [activeModalHypothesis, setActiveModalHypothesis] = useState<Hypothesis | null>(null);
+  const [showEliminated, setShowEliminated] = useState(false);
 
-  const { remainingHypotheses, eliminatedHypotheses, remainingCount } = useMemo(() => {
-    const remaining = hypotheses.filter((h) => !isHypothesisEliminated(h.id));
-    const eliminated = hypotheses.filter((h) => isHypothesisEliminated(h.id));
-    return {
-      remainingHypotheses: remaining,
-      eliminatedHypotheses: eliminated,
-      remainingCount: remaining.length,
-    };
-  }, [hypotheses, isHypothesisEliminated]);
+  const eliminatedHypotheses = useMemo(() => {
+    const eliminatedIds = new Set(eliminations.map((e) => e.hypothesisId));
+    return currentCase.hypotheses.filter((h) => eliminatedIds.has(h.id));
+  }, [currentCase.hypotheses, eliminations]);
 
-  const discoveredCount =
-    getDiscoveredEvidence().length +
-    getCompletedInterviews().length +
-    getDiscoveredInsights().length;
+  const canOpenReport = remainingCount === 1;
 
-  const handleEliminate = (hypothesis: Hypothesis) => {
-    setSelectedHypothesis(hypothesis);
-  };
+  const openEliminateModal = (h: Hypothesis) => setActiveModalHypothesis(h);
 
-  const handleConfirmElimination = (
-    justifications: { type: "evidence" | "interview" | "data"; id: string }[]
-  ) => {
-    if (!selectedHypothesis) return;
-    eliminateHypothesis(selectedHypothesis.id, justifications);
-    setSelectedHypothesis(null);
-  };
-
-  const getJustificationSummary = (hypothesisId: string) => {
-    const justification = getEliminationJustification(hypothesisId);
-    if (!justification) return null;
-
-    const evidenceCount = justification.justifications.filter((j) => j.type === "evidence").length;
-    const interviewCount = justification.justifications.filter((j) => j.type === "interview").length;
-    const dataCount = justification.justifications.filter((j) => j.type === "data").length;
-
-    const parts: string[] = [];
-    if (evidenceCount > 0) parts.push(`${evidenceCount} دليل`);
-    if (interviewCount > 0) parts.push(`${interviewCount} مقابلة`);
-    if (dataCount > 0) parts.push(`${dataCount} بيانات`);
-
-    return parts.join(" + ");
+  const onConfirmElimination = (justifications: { type: "evidence" | "interview" | "data"; id: string }[]) => {
+    if (!activeModalHypothesis) return;
+    eliminateHypothesis(activeModalHypothesis.id, justifications);
+    setActiveModalHypothesis(null);
   };
 
   return (
     <div className="p-8 h-full flex flex-col">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-          <Lightbulb className="w-8 h-8 text-primary" />
-          لوحة الفرضيات
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          اجمع المعلومات… واستبعد الفرضيات اللي مش راكبة على اللي اكتشفته.
-        </p>
+      <header className="mb-8 flex items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            <Lightbulb className="w-8 h-8 text-primary" />
+            لوحة الفرضيات
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            استبعد الفرضيات بمعلومات واضحة… لحد ما تفضّل فرضية واحدة.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={resetGame}
+            className="px-4 py-2 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 transition-colors flex items-center gap-2"
+            data-testid="button-reset-game"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>إعادة</span>
+          </button>
+
+          <Link
+            href={canOpenReport ? "/report" : "/hypotheses"}
+            className={cn(
+              "px-5 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors",
+              canOpenReport
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            )}
+            data-testid="button-go-report"
+          >
+            <FileText className="w-4 h-4" />
+            <span>التقرير</span>
+          </Link>
+        </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="bg-primary/10 px-4 py-2 rounded-lg">
-          <span className="text-muted-foreground">المتبقية: </span>
-          <span className="font-bold text-primary">{remainingCount}</span>
-          <span className="text-muted-foreground"> / {hypotheses.length}</span>
+      {/* Progress */}
+      <div className="bg-card border border-border/50 rounded-2xl p-6 mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="text-sm text-muted-foreground">
+            المتبقي:{" "}
+            <span className="font-mono text-foreground font-bold">{remainingCount}</span> / {total}
+          </div>
+
+          <div className="text-sm text-muted-foreground">
+            المستبعد:{" "}
+            <span className="font-mono text-foreground font-bold">{eliminatedCount}</span> / {total}
+          </div>
+
+          <div className={cn("text-sm font-medium", canOpenReport ? "text-emerald-400" : "text-amber-400")}>
+            {canOpenReport ? "جاهز للتقرير ✅" : "لسه محتاج تستبعد فرضيات"}
+          </div>
         </div>
 
-        <div className="bg-secondary/50 px-4 py-2 rounded-lg">
-          <span className="text-muted-foreground">معلومات مكتشفة: </span>
-          <span className="font-bold text-foreground">{discoveredCount}</span>
+        <div className="mt-4 h-2 bg-background rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${Math.round((eliminatedCount / total) * 100)}%` }}
+          />
         </div>
 
-        {remainingCount === 1 && (
-          <Link href="/report">
-            <div className="bg-accent/20 text-accent px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/30 transition-colors">
-              <Check className="w-4 h-4" />
-              <span className="font-medium">جاهز للتقرير</span>
-              <ArrowLeft className="w-4 h-4" />
-            </div>
-          </Link>
+        {!canOpenReport && (
+          <div className="mt-4 text-xs text-muted-foreground">
+            التقرير مش هيفتح غير لما تفضل فرضية واحدة.
+          </div>
         )}
       </div>
 
-      {/* الفرضيات المتبقية فقط (زي النسخة القديمة) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-auto">
+      {/* Remaining hypotheses (main list) */}
+      <div className="flex-1 space-y-4 pb-24">
         <AnimatePresence mode="popLayout">
-          {remainingHypotheses.map((hypothesis, index) => {
-            const IconComponent = iconMap[hypothesis.icon] || Target;
+          {remaining.map((h) => (
+            <motion.div
+              key={h.id}
+              layout
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              className="bg-card border border-border/50 rounded-2xl p-6 flex items-start justify-between gap-6"
+            >
+              <div className="min-w-0">
+                <div className="font-bold text-lg text-foreground">{h.title}</div>
+                <div className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  {h.description}
+                </div>
+              </div>
 
-            return (
-              <motion.div
-                key={hypothesis.id}
-                layout
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ delay: index * 0.04 }}
-                className={cn(
-                  "relative rounded-xl border-2 p-5 transition-all duration-300 bg-card border-border/50 hover:border-primary/30"
-                )}
+              <button
+                onClick={() => openEliminateModal(h)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors flex-shrink-0"
+                data-testid={`button-eliminate-${h.id}`}
               >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10">
-                    <IconComponent className="w-6 h-6 text-primary" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold mb-1 text-foreground">
-                      {hypothesis.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {hypothesis.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEliminate(hypothesis)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-                    data-testid={`button-eliminate-${hypothesis.id}`}
-                  >
-                    <X className="w-4 h-4" />
-                    <span>استبعاد</span>
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
+                <XCircle className="w-4 h-4" />
+                <span>استبعاد</span>
+              </button>
+            </motion.div>
+          ))}
         </AnimatePresence>
-      </div>
 
-      {/* قائمة الفرضيات المستبعدة (اختياري للرجوع فقط) */}
-      {eliminatedHypotheses.length > 0 && (
-        <div className="mt-6 p-4 bg-secondary/20 rounded-xl border border-border/30">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-muted-foreground" />
-            <h3 className="font-bold text-foreground">فرضيات مستبعدة</h3>
-            <span className="text-xs text-muted-foreground">
-              (لو عايز ترجع وتعدّل، استعيد الفرضية)
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {eliminatedHypotheses.map((h) => {
-              const summary = getJustificationSummary(h.id);
-              return (
-                <div
-                  key={h.id}
-                  className="rounded-xl border border-border/40 bg-card/30 p-4"
-                >
-                  <div className="font-bold text-muted-foreground line-through">
-                    {h.title}
-                  </div>
-
-                  {summary && (
-                    <div className="mt-2 text-xs text-muted-foreground/80">
-                      تم الاستبعاد بناءً على: {summary}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      onClick={() => restoreHypothesis(h.id)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
-                      data-testid={`button-restore-${h.id}`}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      <span>استعادة</span>
-                    </button>
-                  </div>
+        {/* If only one left, show a strong callout */}
+        {canOpenReport && remaining[0] && (
+          <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-6">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-6 h-6 text-emerald-500 mt-0.5" />
+              <div className="min-w-0">
+                <div className="font-bold text-foreground mb-1">فضِلت فرضية واحدة</div>
+                <div className="text-sm text-muted-foreground">
+                  دلوقتي تقدر تفتح التقرير وتدعم الفرضية بمعلومة أو اتنين (اختياري).
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* روابط الغرف */}
-      <div className="mt-6 p-4 bg-secondary/30 rounded-xl border border-border/30">
-        <p className="text-sm text-muted-foreground mb-3">
-          <span className="font-medium text-foreground">معلومة مهمة:</span>{" "}
-          الاستبعاد لازم يكون مبني على معلومات شُفتها.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Link href="/evidence">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-primary/10 transition-colors cursor-pointer text-sm">
-              <FileSearch className="w-4 h-4 text-primary" />
-              <span>غرفة الأدلة</span>
-            </div>
-          </Link>
+        {/* Eliminated hypotheses (optional panel) */}
+        {eliminatedHypotheses.length > 0 && (
+          <div className="bg-secondary/20 border border-border/40 rounded-2xl">
+            <button
+              onClick={() => setShowEliminated((v) => !v)}
+              className="w-full flex items-center justify-between p-5 text-right"
+              data-testid="toggle-eliminated-panel"
+            >
+              <div>
+                <div className="font-bold text-foreground">الفرضيات المستبعدة</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  لو حابب تعدّل، تقدر ترجع فرضية واحدة من هنا
+                </div>
+              </div>
 
-          <Link href="/interviews">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-accent/10 transition-colors cursor-pointer text-sm">
-              <Users className="w-4 h-4 text-accent" />
-              <span>المقابلات</span>
-            </div>
-          </Link>
+              {showEliminated ? (
+                <ChevronUp className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              )}
+            </button>
 
-          <Link href="/data">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-emerald-500/10 transition-colors cursor-pointer text-sm">
-              <BarChart3 className="w-4 h-4 text-emerald-500" />
-              <span>مركز البيانات</span>
-            </div>
-          </Link>
-        </div>
+            <AnimatePresence>
+              {showEliminated && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="px-5 pb-5 space-y-3"
+                >
+                  {eliminatedHypotheses.map((h) => (
+                    <div
+                      key={h.id}
+                      className="bg-card border border-border/50 rounded-xl p-4 flex items-start justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground">{h.title}</div>
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {h.description}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => restoreHypothesis(h.id)}
+                        className="px-3 py-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-sm flex-shrink-0"
+                        data-testid={`button-restore-${h.id}`}
+                      >
+                        رجّع
+                      </button>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
-      {selectedHypothesis && (
+      {/* Modal */}
+      {activeModalHypothesis && !isHypothesisEliminated(activeModalHypothesis.id) && (
         <EliminationModal
-          hypothesis={selectedHypothesis}
-          onClose={() => setSelectedHypothesis(null)}
-          onConfirm={handleConfirmElimination}
+          hypothesis={activeModalHypothesis}
+          onClose={() => setActiveModalHypothesis(null)}
+          onConfirm={onConfirmElimination}
         />
       )}
     </div>
