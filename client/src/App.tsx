@@ -1,65 +1,74 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import NotFound from "@/pages/not-found";
 import { Sidebar } from "@/components/Sidebar";
-import { useGameStore } from "@/store/gameStore";
 
+// Pages
 import Intro from "@/pages/Intro";
 import Office from "@/pages/Office";
-import HypothesisBoard from "@/pages/HypothesisBoard";
 import EvidenceRoom from "@/pages/EvidenceRoom";
 import DataDesk from "@/pages/DataDesk";
 import Interviews from "@/pages/Interviews";
+import HypothesisBoard from "@/pages/HypothesisBoard";
 import Report from "@/pages/Report";
 
-export default function App() {
-  const { gameStatus, getRemainingHypotheses } = useGameStore();
-
-  const remaining = getRemainingHypotheses();
-  const canOpenReport = remaining.length === 1;
-
+function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Sidebar يظهر فقط بعد بدء اللعب */}
-      {gameStatus !== "briefing" && <Sidebar />}
-
-      <main className="flex-1 overflow-y-auto">
-        <Switch>
-          {/* البداية */}
-          <Route path="/">
-            <Redirect to="/intro" />
-          </Route>
-
-          <Route path="/intro" component={Intro} />
-          <Route path="/office" component={Office} />
-
-          {/* لوحة الفرضيات */}
-          <Route path="/hypotheses">
-            {gameStatus === "briefing" ? <Redirect to="/office" /> : <HypothesisBoard />}
-          </Route>
-
-          {/* الغرف */}
-          <Route path="/evidence">
-            {gameStatus === "briefing" ? <Redirect to="/office" /> : <EvidenceRoom />}
-          </Route>
-
-          <Route path="/data">
-            {gameStatus === "briefing" ? <Redirect to="/office" /> : <DataDesk />}
-          </Route>
-
-          <Route path="/interviews">
-            {gameStatus === "briefing" ? <Redirect to="/office" /> : <Interviews />}
-          </Route>
-
-          {/* التقرير */}
-          <Route path="/report">
-            {!canOpenReport ? <Redirect to="/hypotheses" /> : <Report />}
-          </Route>
-
-          {/* أي مسار غلط */}
-          <Route>
-            <Redirect to="/intro" />
-          </Route>
-        </Switch>
+    <div className="flex h-screen bg-background overflow-hidden font-arabic" dir="rtl">
+      <Sidebar />
+      <main className="flex-1 overflow-auto relative">
+        {/* Subtle grid background for the main area */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+        <div className="relative z-10 min-h-full">
+          {children}
+        </div>
       </main>
     </div>
   );
 }
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/" component={Intro} />
+      
+      {/* Game Routes wrapped in Layout */}
+      <Route path="/office">
+        <Layout><Office /></Layout>
+      </Route>
+      <Route path="/evidence">
+        <Layout><EvidenceRoom /></Layout>
+      </Route>
+      <Route path="/data">
+        <Layout><DataDesk /></Layout>
+      </Route>
+      <Route path="/interviews">
+        <Layout><Interviews /></Layout>
+      </Route>
+      <Route path="/hypotheses">
+        <Layout><HypothesisBoard /></Layout>
+      </Route>
+      <Route path="/report">
+        <Layout><Report /></Layout>
+      </Route>
+
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

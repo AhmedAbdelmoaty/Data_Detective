@@ -1,41 +1,25 @@
 import { useGameStore } from "@/store/gameStore";
-import { Users, MessageSquare, Lock, Clock } from "lucide-react";
+import { Users, MessageSquare, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Interviews() {
-  const { currentCase, interviewedIds, askQuestion, time } = useGameStore();
-  const [selectedStakeholderId, setSelectedStakeholderId] = useState(
-    currentCase.stakeholders[0].id
-  );
+  const { currentCase, interviewedIds, askQuestion } = useGameStore();
+  const [selectedStakeholderId, setSelectedStakeholderId] = useState(currentCase.stakeholders[0].id);
 
-  const activeStakeholder = currentCase.stakeholders.find(
-    (s) => s.id === selectedStakeholderId
-  )!;
+  const activeStakeholder = currentCase.stakeholders.find(s => s.id === selectedStakeholderId)!;
 
   return (
     <div className="p-8 h-full flex flex-col">
-      <header className="mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            غرفة المقابلات
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            اسأل الموظفين… كل سؤال ليه تكلفة وقت.
-          </p>
-        </div>
-
-        <div className="text-right">
-          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2 justify-end">
-            <Clock className="w-4 h-4" />
-            الوقت المتبقي
-          </div>
-          <div className="font-mono text-2xl font-bold text-foreground">
-            {time} دقيقة
-          </div>
-        </div>
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+          <Users className="w-8 h-8 text-primary" />
+          غرفة المقابلات
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          ناقش الموظفين الرئيسيين. كل سؤال يكلف وقتاً، اختر بحكمة.
+        </p>
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
@@ -52,9 +36,9 @@ export default function Interviews() {
                   : "bg-card border-border hover:bg-white/5"
               )}
             >
-              <img
-                src={person.avatar}
-                alt={person.name}
+              <img 
+                src={person.avatar} 
+                alt={person.name} 
                 className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
               />
               <div>
@@ -69,9 +53,9 @@ export default function Interviews() {
         <div className="flex-1 glass-card rounded-2xl p-8 flex flex-col border border-border/50">
           <div className="flex items-center gap-6 mb-8 border-b border-border/50 pb-6">
             <div className="relative">
-              <img
-                src={activeStakeholder.avatar}
-                alt={activeStakeholder.name}
+              <img 
+                src={activeStakeholder.avatar} 
+                alt={activeStakeholder.name} 
                 className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/20"
               />
               <div className="absolute -bottom-2 -right-2 bg-green-500 w-4 h-4 rounded-full border-2 border-background" />
@@ -86,17 +70,16 @@ export default function Interviews() {
             <AnimatePresence mode="popLayout">
               {activeStakeholder.questions.map((q) => {
                 const isAsked = interviewedIds.includes(q.id);
-
                 return (
-                  <motion.div
+                  <motion.div 
                     key={q.id}
                     layout
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={cn(
                       "rounded-xl border p-4 transition-all",
-                      isAsked
-                        ? "bg-secondary/40 border-border"
+                      isAsked 
+                        ? "bg-secondary/40 border-border" 
                         : "bg-card border-border/50 hover:border-primary/50 cursor-pointer"
                     )}
                     onClick={() => !isAsked && askQuestion(q.id, q.cost)}
@@ -104,28 +87,16 @@ export default function Interviews() {
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare
-                            className={cn(
-                              "w-4 h-4",
-                              isAsked ? "text-muted-foreground" : "text-primary"
-                            )}
-                          />
-                          <h4
-                            className={cn(
-                              "font-medium",
-                              isAsked
-                                ? "text-muted-foreground"
-                                : "text-foreground"
-                            )}
-                          >
+                          <MessageSquare className={cn("w-4 h-4", isAsked ? "text-muted-foreground" : "text-primary")} />
+                          <h4 className={cn("font-medium", isAsked ? "text-muted-foreground" : "text-foreground")}>
                             {q.text}
                           </h4>
                         </div>
-
+                        
                         {isAsked && (
-                          <motion.div
+                          <motion.div 
                             initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
+                            animate={{ opacity: 1, height: 'auto' }}
                             className="mt-3 pr-6 text-sm text-primary-foreground/90 leading-relaxed bg-primary/10 p-3 rounded-lg"
                           >
                             "{q.response}"

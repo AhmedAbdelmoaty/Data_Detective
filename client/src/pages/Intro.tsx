@@ -1,8 +1,11 @@
+import { useGameStore } from "@/store/gameStore";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Play, ShieldAlert } from "lucide-react";
 
 export default function Intro() {
+  const { startGame } = useGameStore();
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 relative overflow-hidden">
       {/* Background Elements */}
@@ -27,7 +30,8 @@ export default function Intro() {
         </h1>
 
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-          تجربة تحليل بسيطة: اقرأ الملفات، اسأل الناس، وارجع بتفسير واضح مبني على معلومات.
+          تجربة تحليل بسيطة تعتمد على المعلومات. شوف الملفات، اسأل الناس، وركّب
+          الصورة لحد ما توصل لسبب واضح.
         </p>
 
         <div className="bg-card/50 backdrop-blur-sm border border-border p-8 rounded-2xl mb-12 text-right">
@@ -35,11 +39,13 @@ export default function Intro() {
             القضية 001: شركة الأمل العقارية
           </h3>
           <p className="text-sm text-slate-300 leading-7">
-            عدد الاستفسارات زاد بعد حملة جديدة… لكن المبيعات قلت. الإدارة عايزة تفسير واضح قبل ما تلوم أي فريق.
+            شركة عقارية تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها
+            التسويقية. بصفتك محلل بيانات، مهمتك هي الغوص في البيانات لتحديد
+            السبب الحقيقي قبل إفلاس الشركة.
           </p>
         </div>
 
-        <Link href="/office">
+        <Link href="/office" onClick={startGame}>
           <button
             className="
             group relative px-10 py-5 bg-primary text-primary-foreground text-xl font-bold rounded-xl 
@@ -57,7 +63,7 @@ export default function Intro() {
       </motion.div>
 
       <footer className="absolute bottom-8 text-xs text-muted-foreground opacity-50">
-        نسخة تجريبية للتدريب على التفكير التحليلي
+        محاكي تدريب تحليل البيانات - الإصدار التجريبي
       </footer>
     </div>
   );
