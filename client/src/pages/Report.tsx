@@ -1,244 +1,387 @@
-import { useGameStore } from "@/store/gameStore";
-import { FileText, CheckCircle, AlertTriangle, Send, Target, ArrowRight, RotateCcw, MessageSquare, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { Link } from "wouter";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import { useGameStore, ReportResult } from "@/store/gameStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Users, Database, CheckCircle2, AlertTriangle } from "lucide-react";
+
+type InfoItem = {
+  key: string;
+  type: "evidence" | "interview" | "data";
+  id: string;
+  title: string;
+  detail: string;
+};
+
+function levelBadge(level: string) {
+  switch (level) {
+    case "strong":
+      return { label: "قوي", variant: "default" as const, icon: CheckCircle2 };
+    case "good":
+      return { label: "مقبول", variant: "secondary" as const, icon: CheckCircle2 };
+    case "mixed":
+      return { label: "مختلط", variant: "secondary" as const, icon: AlertTriangle };
+    case "weak":
+      return { label: "ضعيف", variant: "outline" as const, icon: AlertTriangle };
+    case "trap":
+      return { label: "مضلل", variant: "destructive" as const, icon: AlertTriangle };
+    case "irrelevant":
+      return { label: "بعيد", variant: "destructive" as const, icon: AlertTriangle };
+    default:
+      return { label: "غير واضح", variant: "outline" as const, icon: AlertTriangle };
+  }
+}
 
 export default function Report() {
-  const { 
-    currentCase, 
-    pinnedEvidenceIds, 
-    submitConclusion, 
+  const [_, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const {
     gameStatus,
+    currentCase,
     getRemainingHypotheses,
-    eliminations,
     selectedHypothesisId,
     selectFinalHypothesis,
-    resetGame,
+    finalSupportJustifications,
+    setFinalSupportJustifications,
     getDiscoveredEvidence,
     getCompletedInterviews,
     getDiscoveredInsights,
+    getEliminationJustification,
+    submitConclusion,
+    resetGame,
   } = useGameStore();
-  
-  const [result, setResult] = useState<{ correct: boolean; feedback: string } | null>(null);
+
+  const [result, setResult] = useState<ReportResult | null>(null);
+
+  useEffect(() => {
+    if (gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, setLocation]);
 
   const remainingHypotheses = getRemainingHypotheses();
-  const eliminatedCount = eliminations.length;
-  const totalHypotheses = currentCase.hypotheses.length;
+  const isReadyToReport = remainingHypotheses.length === 1;
+  const finalHypothesis = isReadyToReport ? remainingHypotheses[0] : null;
+
+  const discoveredEvidence = getDiscoveredEvidence();
+  const completedInterviews = getCompletedInterviews();
+  const discoveredInsights = getDiscoveredInsights();
+
+  const infoItems: InfoItem[] = useMemo(() => {
+    const evItems: InfoItem[] = discoveredEvidence.map((ev) => ({
+      key: `evidence:${ev.id}`,
+      type: "evidence",
+      id: ev.id,
+      title: ev.title,
+      detail: ev.description,
+    }));
+
+    const ivItems: InfoItem[] = completedInterviews.map((i) => ({
+      key: `interview:${i.id}`,
+      type: "interview",
+      id: i.id,
+      title: i.stakeholderName,
+      detail: `سؤال: ${i.text}\nإجابة: ${i.response}`,
+    }));
+
+    const dataItems: InfoItem[] = discoveredInsights.map((ins) => ({
+      key: `data:${ins.id}`,
+      type: "data",
+      id: ins.id,
+      title: ins.datasetName,
+      detail: ins.description,
+    }));
+
+    return [...evItems, ...ivItems, ...dataItems];
+  }, [discoveredEvidence, completedInterviews, discoveredInsights]);
+
+  const selectedSupportKeys = new Set(finalSupportJustifications.map((j) => `${j.type}:${j.id}`));
+
+  const toggleSupport = (item: InfoItem) => {
+    const key = item.key;
+    const exists = selectedSupportKeys.has(key);
+
+    if (!exists && finalSupportJustifications.length >= 2) {
+      toast({
+        title: "حد الأسباب",
+        description: "اختر سبب واحد أو اثنين فقط لدعم الفرضية النهائية.",
+      });
+      return;
+    }
+
+    const next = exists
+      ? finalSupportJustifications.filter((j) => `${j.type}:${j.id}` !== key)
+      : [...finalSupportJustifications, { type: item.type, id: item.id }];
+
+    setFinalSupportJustifications(next);
+  };
+
+  const handleConfirmHypothesis = () => {
+    if (!finalHypothesis) return;
+    selectFinalHypothesis(finalHypothesis.id);
+    // reset any previous run support choices
+    setFinalSupportJustifications([]);
+  };
 
   const handleSubmit = () => {
-    if (!selectedHypothesisId) return;
     const res = submitConclusion();
     setResult(res);
   };
 
-  if (result) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className={cn(
-            "max-w-2xl w-full rounded-2xl p-8 text-center",
-            result.correct 
-              ? "bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30" 
-              : "bg-gradient-to-br from-red-500/20 to-orange-500/10 border border-red-500/30"
-          )}
-        >
-          <div className={cn(
-            "w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
-            result.correct ? "bg-green-500/20" : "bg-red-500/20"
-          )}>
-            {result.correct 
-              ? <CheckCircle className="w-10 h-10 text-green-500" />
-              : <AlertTriangle className="w-10 h-10 text-red-500" />
-            }
-          </div>
-          
-          <h2 className={cn(
-            "text-2xl font-bold mb-4",
-            result.correct ? "text-green-500" : "text-red-500"
-          )}>
-            {result.correct ? "تحليل صحيح!" : "تحليل غير دقيق"}
-          </h2>
-          
-          <p className="text-muted-foreground leading-relaxed mb-8">
-            {result.feedback}
-          </p>
-          
-          <button 
-            onClick={() => {
-              resetGame();
-              setResult(null);
-            }}
-            className="flex items-center gap-2 px-6 py-3 mx-auto rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            data-testid="button-play-again"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>العب مرة أخرى</span>
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  const handleRestart = () => {
+    resetGame();
+    setResult(null);
+    setLocation("/");
+  };
+
+  const iconFor = (type: InfoItem["type"]) => {
+    if (type === "evidence") return FileText;
+    if (type === "interview") return Users;
+    return Database;
+  };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-8 max-w-5xl mx-auto space-y-8 pb-24">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-          <FileText className="w-8 h-8 text-primary" />
-          تقديم التقرير النهائي
-        </h1>
+        <h1 className="text-3xl font-bold">التقرير النهائي</h1>
         <p className="text-muted-foreground">
-          بناءً على تحليلك للأدلة والمقابلات، حدد الفرضية التي تفسر المشكلة
+          اكتب تقريرك بشكل مقنع: استبعاد الفرضيات لازم يكون له أسباب واضحة، وكمان دعم الفرضية النهائية.
         </p>
       </header>
 
-      <div className="bg-card rounded-2xl border border-border/50 p-6">
-        <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-          <Target className="w-5 h-5 text-primary" />
-          ملخص التحليل
-        </h2>
-        
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-secondary/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-primary">{eliminatedCount}</div>
-            <div className="text-sm text-muted-foreground">فرضيات مستبعدة</div>
-          </div>
-          <div className="bg-secondary/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-accent">{remainingHypotheses.length}</div>
-            <div className="text-sm text-muted-foreground">فرضيات متبقية</div>
-          </div>
-          <div className="bg-secondary/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-foreground">{pinnedEvidenceIds.length}</div>
-            <div className="text-sm text-muted-foreground">أدلة مثبتة</div>
-          </div>
-        </div>
+      {/* Locked state (page still visible) */}
+      {!isReadyToReport && (
+        <Card className="glass-card border-border/50">
+          <CardHeader>
+            <CardTitle>التقرير غير جاهز بعد</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertDescription>
+                لازم تفضل <b>فرضية واحدة فقط</b> قبل ما تقدّم التقرير.
+                <br />
+                ارجع للوحة الفرضيات واستبعد الباقي بمعلومات واضحة.
+              </AlertDescription>
+            </Alert>
 
-        {remainingHypotheses.length === 0 ? (
-          <div className="bg-destructive/10 rounded-xl p-6 text-center">
-            <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-3" />
-            <p className="text-destructive font-medium">
-              لقد استبعدت جميع الفرضيات! يجب أن تبقى فرضية واحدة على الأقل.
-            </p>
-            <Link 
-              href="/hypotheses"
-              className="inline-flex items-center gap-2 mt-4 text-primary hover:underline"
-            >
-              <ArrowRight className="w-4 h-4" />
-              العودة للوحة الفرضيات
-            </Link>
-          </div>
-        ) : remainingHypotheses.length > 1 ? (
-          <div className="space-y-4">
-            <div className="bg-amber-500/10 rounded-xl p-6 text-center border border-amber-500/30">
-              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-              <p className="text-amber-600 dark:text-amber-400 font-medium mb-2">
-                لا يزال هناك {remainingHypotheses.length} فرضيات متبقية
-              </p>
-              <p className="text-muted-foreground text-sm mb-4">
-                يجب استبعاد الفرضيات المتناقضة مع الأدلة حتى تبقى فرضية واحدة فقط.
-                اجمع المزيد من الأدلة وقم بتحليلها لاستبعاد الفرضيات الخاطئة.
-              </p>
-              <Link 
-                href="/hypotheses"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition-colors"
-              >
-                <ArrowRight className="w-4 h-4" />
-                العودة للوحة الفرضيات
-              </Link>
+            <div className="text-sm text-muted-foreground">
+              المتبقي الآن: <b>{remainingHypotheses.length}</b> فرضيات
             </div>
-          </div>
-        ) : (
-          <div className="bg-accent/10 rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <CheckCircle className="w-6 h-6 text-accent" />
-              <span className="font-bold text-foreground">الفرضية المتبقية:</span>
-            </div>
-            <div className="bg-card rounded-lg p-4 border border-accent/30">
-              <div className="font-bold text-lg text-foreground">{remainingHypotheses[0].title}</div>
-              <div className="text-muted-foreground mt-1">{remainingHypotheses[0].description}</div>
-            </div>
-            {!selectedHypothesisId && (
-              <button
-                onClick={() => selectFinalHypothesis(remainingHypotheses[0].id)}
-                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
-                data-testid="button-confirm-hypothesis"
-              >
-                <CheckCircle className="w-5 h-5" />
-                <span>تأكيد هذه الفرضية</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
 
-      {eliminations.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border/50 p-6">
-          <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-destructive" />
-            مسار التفكير (الفرضيات المستبعدة)
-          </h2>
-          <div className="space-y-4">
-            {eliminations.map((elimination) => {
-              const hypothesis = currentCase.hypotheses.find(h => h.id === elimination.hypothesisId);
-              if (!hypothesis) return null;
-              
-              const evidenceJustifications = elimination.justifications.filter(j => j.type === 'evidence');
-              const interviewJustifications = elimination.justifications.filter(j => j.type === 'interview');
-              const dataJustifications = elimination.justifications.filter(j => j.type === 'data');
-              
-              return (
-                <div key={elimination.hypothesisId} className="bg-secondary/30 rounded-xl p-4 border border-border/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-full bg-destructive/20 flex items-center justify-center">
-                      <span className="text-destructive text-xs font-bold">X</span>
-                    </div>
-                    <span className="font-bold text-foreground line-through">{hypothesis.title}</span>
+            <Button variant="secondary" onClick={() => setLocation("/hypotheses")}>
+              الرجوع للوحة الفرضيات
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ready state */}
+      {isReadyToReport && finalHypothesis && (
+        <Card className="glass-card border-border/50">
+          <CardHeader>
+            <CardTitle>الفرضية المتبقية</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-5 rounded-xl bg-secondary/30 border border-white/5">
+              <div className="font-bold text-lg">{finalHypothesis.title}</div>
+              <div className="text-sm text-muted-foreground mt-1">{finalHypothesis.description}</div>
+            </div>
+
+            {!selectedHypothesisId ? (
+              <Button onClick={handleConfirmHypothesis} className="w-full">
+                تأكيد هذه الفرضية كسبب رئيسي
+              </Button>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold">اختر 1–2 معلومات تدعم الفرضية</h3>
+                  <Badge variant="secondary">{finalSupportJustifications.length} / 2</Badge>
+                </div>
+
+                {infoItems.length === 0 ? (
+                  <Alert>
+                    <AlertDescription>
+                      لسه ما جمعتش معلومات كفاية. ارجع للأدلة/المقابلات/البيانات وسجّل اللي اكتشفته.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {infoItems.map((item) => {
+                      const Icon = iconFor(item.type);
+                      const checked = selectedSupportKeys.has(item.key);
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => toggleSupport(item)}
+                          className={
+                            "text-right p-4 rounded-xl border transition-all " +
+                            (checked
+                              ? "border-primary/60 bg-primary/10"
+                              : "border-border/40 bg-secondary/20 hover:bg-secondary/30")
+                          }
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1 text-primary">
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm">{item.title}</div>
+                              <div className="text-xs text-muted-foreground whitespace-pre-line mt-1">
+                                {item.detail}
+                              </div>
+                            </div>
+                            <div className="mt-1">
+                              {checked ? (
+                                <CheckCircle2 className="w-5 h-5 text-primary" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border border-border/60" />
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    {evidenceJustifications.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-primary" />
-                        <span>{evidenceJustifications.length} دليل</span>
+                )}
+
+                <Button
+                  onClick={handleSubmit}
+                  className="w-full"
+                  disabled={finalSupportJustifications.length === 0}
+                >
+                  تقديم التقرير
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Result */}
+      {result && (
+        <Card className="glass-card border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>رد المدير</span>
+              <Badge variant={result.accepted ? "default" : "destructive"}>
+                {result.accepted ? "مقبول" : "غير مقبول"}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="whitespace-pre-line text-sm leading-7 bg-secondary/20 border border-border/40 rounded-xl p-5">
+              {result.managerMessage}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="font-bold">تقييم عام</div>
+                <div className="text-sm text-muted-foreground">{result.scorePercent}%</div>
+              </div>
+              <Progress value={result.scorePercent} />
+              <p className="text-xs text-muted-foreground">
+                التقييم هنا بيقيس “قوة التفكير” بشكل عام (من غير ما يديك الإجابة الجاهزة).
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="font-bold">ملخص نقاط القوة/الضعف</div>
+
+              <div className="space-y-3">
+                {Object.entries(result.breakdown.eliminations).map(([hid, ev]) => {
+                  const h = currentCase.hypotheses.find((x) => x.id === hid);
+                  const meta = levelBadge(ev.level);
+                  const Icon = meta.icon;
+                  return (
+                    <div key={hid} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" />
+                          <div className="font-bold text-sm">{h?.title || hid}</div>
+                        </div>
+                        <Badge variant={meta.variant}>{meta.label}</Badge>
                       </div>
-                    )}
-                    {interviewJustifications.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-accent" />
-                        <span>{interviewJustifications.length} مقابلة</span>
-                      </div>
-                    )}
-                    {dataJustifications.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-emerald-500" />
-                        <span>{dataJustifications.length} رؤية بيانات</span>
-                      </div>
-                    )}
+                      <div className="text-xs text-muted-foreground mt-2">{ev.note}</div>
+                    </div>
+                  );
+                })}
+
+                <div className="p-4 rounded-xl border border-border/40 bg-secondary/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <div className="font-bold text-sm">دعم الفرضية النهائية</div>
+                    </div>
+                    {(() => {
+                      const ev = result.breakdown.finalSupport;
+                      const meta = ev ? levelBadge(ev.level) : levelBadge("irrelevant");
+                      return <Badge variant={meta.variant}>{meta.label}</Badge>;
+                    })()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {result.breakdown.finalSupport?.note || "مافيش أسباب دعم كفاية في التقرير."}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => setLocation("/hypotheses")}>
+                الرجوع للوحة الفرضيات
+              </Button>
+              <Button variant="outline" onClick={handleRestart}>
+                إعادة المحاولة من البداية
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {selectedHypothesisId && remainingHypotheses.length === 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <button
-            onClick={handleSubmit}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-lg font-bold"
-            data-testid="button-submit-report"
-          >
-            <Send className="w-6 h-6" />
-            <span>تقديم التقرير النهائي</span>
-          </button>
-        </motion.div>
-      )}
+      {/* History summary */}
+      <Card className="glass-card border-border/50">
+        <CardHeader>
+          <CardTitle>ملخص تقريرك حتى الآن</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-secondary/20 border border-border/40">
+              <div className="text-muted-foreground text-xs mb-1">الأدلة التي فتحتها</div>
+              <div className="font-bold">{discoveredEvidence.length}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-secondary/20 border border-border/40">
+              <div className="text-muted-foreground text-xs mb-1">الأسئلة التي سألتها</div>
+              <div className="font-bold">{completedInterviews.length}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-secondary/20 border border-border/40">
+              <div className="text-muted-foreground text-xs mb-1">رؤى البيانات المسجلة</div>
+              <div className="font-bold">{discoveredInsights.length}</div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="font-bold">الفرضيات المستبعدة</div>
+            {currentCase.hypotheses
+              .filter((h) => h.id !== finalHypothesis?.id)
+              .map((h) => {
+                const elim = getEliminationJustification(h.id);
+                if (!elim) return null;
+                const count = elim.justifications.length;
+                return (
+                  <div key={h.id} className="p-4 rounded-xl bg-secondary/10 border border-border/40">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-sm">{h.title}</div>
+                      <Badge variant="secondary">{count} سبب</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
