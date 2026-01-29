@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   UserX, 
   ServerCrash, 
@@ -31,6 +31,7 @@ const iconMap: Record<string, typeof UserX> = {
 
 export default function HypothesisBoard() {
   const { 
+    gameStatus,
     currentCase, 
     eliminateHypothesis, 
     restoreHypothesis,
@@ -40,6 +41,12 @@ export default function HypothesisBoard() {
     getCompletedInterviews,
     getDiscoveredInsights,
   } = useGameStore();
+  const [_, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, setLocation]);
+
 
   const [selectedHypothesis, setSelectedHypothesis] = useState<Hypothesis | null>(null);
 
