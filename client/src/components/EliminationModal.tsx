@@ -2,49 +2,60 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/store/gameStore";
 import { cn } from "@/lib/utils";
-import { 
-  X, 
-  FileText, 
-  MessageSquare, 
-  BarChart3, 
+import {
+  X,
+  FileText,
+  MessageSquare,
+  BarChart3,
   Check,
   AlertTriangle,
-  ChevronLeft
+  ChevronLeft,
 } from "lucide-react";
 import { Hypothesis } from "@shared/schema";
 interface EliminationModalProps {
   hypothesis: Hypothesis;
   onClose: () => void;
-  onConfirm: (justifications: { type: 'evidence' | 'interview' | 'data'; id: string }[]) => void;
+  onConfirm: (
+    justifications: { type: "evidence" | "interview" | "data"; id: string }[],
+  ) => void;
 }
-export function EliminationModal({ hypothesis, onClose, onConfirm }: EliminationModalProps) {
-  const { 
-    getDiscoveredEvidence, 
-    getCompletedInterviews, 
-    getDiscoveredInsights 
+export function EliminationModal({
+  hypothesis,
+  onClose,
+  onConfirm,
+}: EliminationModalProps) {
+  const {
+    getDiscoveredEvidence,
+    getCompletedInterviews,
+    getDiscoveredInsights,
   } = useGameStore();
-  
-    const { toast } = useToast();
-const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'interview' | 'data'; id: string }[]>([]);
-  
+
+  const [selectedItems, setSelectedItems] = useState<
+    { type: "evidence" | "interview" | "data"; id: string }[]
+  >([]);
+
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
   const discoveredInsights = getDiscoveredInsights();
-  
-  const hasAnyDiscoveries = discoveredEvidence.length > 0 || completedInterviews.length > 0 || discoveredInsights.length > 0;
-  const toggleItem = (type: 'evidence' | 'interview' | 'data', id: string) => {
+
+  const hasAnyDiscoveries =
+    discoveredEvidence.length > 0 ||
+    completedInterviews.length > 0 ||
+    discoveredInsights.length > 0;
+  const toggleItem = (type: "evidence" | "interview" | "data", id: string) => {
     const key = `${type}:${id}`;
     setSelectedItems((prev) => {
       const exists = prev.some((item) => item.type === type && item.id === id);
       if (!exists && prev.length >= 2) {
-        toast({ title: 'حد الأسباب', description: 'اختر سبب واحد أو اثنين فقط.' });
         return prev;
       }
-      return exists ? prev.filter((item) => `${item.type}:${item.id}` !== key) : [...prev, { type, id }];
+      return exists
+        ? prev.filter((item) => `${item.type}:${item.id}` !== key)
+        : [...prev, { type, id }];
     });
   };
-  const isSelected = (type: 'evidence' | 'interview' | 'data', id: string) => {
-    return selectedItems.some(item => item.type === type && item.id === id);
+  const isSelected = (type: "evidence" | "interview" | "data", id: string) => {
+    return selectedItems.some((item) => item.type === type && item.id === id);
   };
   const handleConfirm = () => {
     if (selectedItems.length > 0) {
@@ -70,7 +81,9 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
           <div className="p-6 border-b border-border">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-xl font-bold text-foreground">استبعاد فرضية</h2>
+                <h2 className="text-xl font-bold text-foreground">
+                  استبعاد فرضية
+                </h2>
                 <p className="text-muted-foreground mt-1">
                   اختر الأدلة أو المعلومات التي أقنعتك بأن هذه الفرضية غير صحيحة
                 </p>
@@ -83,19 +96,26 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
-            
+
             <div className="mt-4 p-4 bg-destructive/10 rounded-xl border border-destructive/20">
-              <div className="font-bold text-foreground">{hypothesis.title}</div>
-              <div className="text-sm text-muted-foreground mt-1">{hypothesis.description}</div>
+              <div className="font-bold text-foreground">
+                {hypothesis.title}
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                {hypothesis.description}
+              </div>
             </div>
           </div>
           <div className="p-6 overflow-y-auto max-h-[50vh] space-y-6">
             {!hasAnyDiscoveries ? (
               <div className="text-center py-8">
                 <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-2">لم تجمع أي معلومات بعد</p>
+                <p className="text-foreground font-medium mb-2">
+                  لم تجمع أي معلومات بعد
+                </p>
                 <p className="text-muted-foreground text-sm">
-                  استكشف غرفة الأدلة، وتحدث مع الأشخاص، وحلل البيانات قبل استبعاد أي فرضية.
+                  استكشف غرفة الأدلة، وتحدث مع الأشخاص، وحلل البيانات قبل
+                  استبعاد أي فرضية.
                 </p>
               </div>
             ) : (
@@ -110,25 +130,35 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
                       {discoveredEvidence.map((ev) => (
                         <button
                           key={ev.id}
-                          onClick={() => toggleItem('evidence', ev.id)}
+                          onClick={() => toggleItem("evidence", ev.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('evidence', ev.id)
+                            isSelected("evidence", ev.id)
                               ? "border-primary bg-primary/10"
-                              : "border-border/50 hover:border-primary/30"
+                              : "border-border/50 hover:border-primary/30",
                           )}
                           data-testid={`select-evidence-${ev.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('evidence', ev.id) ? "border-primary bg-primary" : "border-muted-foreground"
-                            )}>
-                              {isSelected('evidence', ev.id) && <Check className="w-3 h-3 text-primary-foreground" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("evidence", ev.id)
+                                  ? "border-primary bg-primary"
+                                  : "border-muted-foreground",
+                              )}
+                            >
+                              {isSelected("evidence", ev.id) && (
+                                <Check className="w-3 h-3 text-primary-foreground" />
+                              )}
                             </div>
                             <div>
-                              <div className="font-medium text-foreground">{ev.title}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">{ev.description}</div>
+                              <div className="font-medium text-foreground">
+                                {ev.title}
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                                {ev.description}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -146,26 +176,38 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
                       {completedInterviews.map((interview) => (
                         <button
                           key={interview.id}
-                          onClick={() => toggleItem('interview', interview.id)}
+                          onClick={() => toggleItem("interview", interview.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('interview', interview.id)
+                            isSelected("interview", interview.id)
                               ? "border-accent bg-accent/10"
-                              : "border-border/50 hover:border-accent/30"
+                              : "border-border/50 hover:border-accent/30",
                           )}
                           data-testid={`select-interview-${interview.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('interview', interview.id) ? "border-accent bg-accent" : "border-muted-foreground"
-                            )}>
-                              {isSelected('interview', interview.id) && <Check className="w-3 h-3 text-accent-foreground" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("interview", interview.id)
+                                  ? "border-accent bg-accent"
+                                  : "border-muted-foreground",
+                              )}
+                            >
+                              {isSelected("interview", interview.id) && (
+                                <Check className="w-3 h-3 text-accent-foreground" />
+                              )}
                             </div>
                             <div>
-                              <div className="text-xs text-muted-foreground mb-1">{interview.stakeholderName}</div>
-                              <div className="font-medium text-foreground">{interview.text}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">"{interview.response}"</div>
+                              <div className="text-xs text-muted-foreground mb-1">
+                                {interview.stakeholderName}
+                              </div>
+                              <div className="font-medium text-foreground">
+                                {interview.text}
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                                "{interview.response}"
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -183,25 +225,35 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
                       {discoveredInsights.map((insight) => (
                         <button
                           key={insight.id}
-                          onClick={() => toggleItem('data', insight.id)}
+                          onClick={() => toggleItem("data", insight.id)}
                           className={cn(
                             "w-full text-right p-4 rounded-xl border-2 transition-all",
-                            isSelected('data', insight.id)
+                            isSelected("data", insight.id)
                               ? "border-emerald-500 bg-emerald-500/10"
-                              : "border-border/50 hover:border-emerald-500/30"
+                              : "border-border/50 hover:border-emerald-500/30",
                           )}
                           data-testid={`select-insight-${insight.id}`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                              isSelected('data', insight.id) ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground"
-                            )}>
-                              {isSelected('data', insight.id) && <Check className="w-3 h-3 text-white" />}
+                            <div
+                              className={cn(
+                                "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                isSelected("data", insight.id)
+                                  ? "border-emerald-500 bg-emerald-500"
+                                  : "border-muted-foreground",
+                              )}
+                            >
+                              {isSelected("data", insight.id) && (
+                                <Check className="w-3 h-3 text-white" />
+                              )}
                             </div>
                             <div>
-                              <div className="text-xs text-muted-foreground mb-1">{insight.datasetName}</div>
-                              <div className="font-medium text-foreground">{insight.description}</div>
+                              <div className="text-xs text-muted-foreground mb-1">
+                                {insight.datasetName}
+                              </div>
+                              <div className="font-medium text-foreground">
+                                {insight.description}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -221,7 +273,7 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
               <ChevronLeft className="w-4 h-4" />
               <span>رجوع</span>
             </button>
-            
+
             <button
               onClick={handleConfirm}
               disabled={selectedItems.length === 0}
@@ -229,7 +281,7 @@ const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'intervi
                 "flex items-center gap-2 px-6 py-2 rounded-lg transition-colors font-medium",
                 selectedItems.length > 0
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-muted text-muted-foreground cursor-not-allowed",
               )}
               data-testid="button-confirm-elimination"
             >
