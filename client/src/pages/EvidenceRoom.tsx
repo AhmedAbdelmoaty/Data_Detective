@@ -1,28 +1,27 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useGameStore } from "@/store/gameStore";
 import { EvidenceCard } from "@/components/EvidenceCard";
 import { Search } from "lucide-react";
 
 export default function EvidenceRoom() {
-  const { currentCase, visitedEvidenceIds, pinnedEvidenceIds, visitEvidence, togglePinEvidence } = useGameStore();
+  const [_, setLocation] = useLocation();
+  const { gameStatus, currentCase, visitedEvidenceIds, visitEvidence } = useGameStore();
+
+  useEffect(() => {
+    if (gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, setLocation]);
 
   return (
     <div className="p-8 h-full flex flex-col">
-      <header className="mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Search className="w-8 h-8 text-primary" />
-            غرفة الأدلة
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            اجمع الأدلة، ادرسها، وقم بتثبيت (Pin) الأدلة المهمة لبناء قضيتك.
-          </p>
-        </div>
-        <div className="text-right">
-          <div className="text-sm text-muted-foreground mb-1">الأدلة المثبتة</div>
-          <div className="font-mono text-2xl font-bold text-accent">
-            {pinnedEvidenceIds.length} / 5
-          </div>
-        </div>
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+          <Search className="w-8 h-8 text-primary" />
+          غرفة الأدلة
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          اجمع الأدلة، ادرسها، واستخدمها كـ“معلومات” لاستبعاد الفرضيات أو دعم الفرضية النهائية.
+        </p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pb-20">
@@ -31,9 +30,7 @@ export default function EvidenceRoom() {
             key={ev.id}
             evidence={ev}
             isVisited={visitedEvidenceIds.includes(ev.id)}
-            isPinned={pinnedEvidenceIds.includes(ev.id)}
             onVisit={() => visitEvidence(ev.id, ev.cost)}
-            onPin={() => togglePinEvidence(ev.id)}
           />
         ))}
       </div>
