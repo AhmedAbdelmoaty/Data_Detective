@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useGameStore } from "@/store/gameStore";
 import { DataTable } from "@/components/DataTable";
 import { Database, TrendingUp, BarChart3, Lightbulb, Check, Eye } from "lucide-react";
@@ -6,7 +8,12 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export default function DataDesk() {
-  const { currentCase, discoverDataInsight, discoveredDataInsightIds } = useGameStore();
+  const { gameStatus, currentCase, discoverDataInsight, discoveredDataInsightIds } = useGameStore();
+  const [_, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, setLocation]);
 
   // Level 1 case uses two simple charts:
   // 1) الاستفسارات مقابل المبيعات (leads vs sales)
