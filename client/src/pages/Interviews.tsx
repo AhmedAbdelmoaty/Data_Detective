@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useGameStore } from "@/store/gameStore";
 import { Users, MessageSquare, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -5,7 +7,12 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Interviews() {
-  const { currentCase, interviewedIds, askQuestion } = useGameStore();
+  const { gameStatus, currentCase, interviewedIds, askQuestion } = useGameStore();
+  const [_, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, setLocation]);
   const [selectedStakeholderId, setSelectedStakeholderId] = useState(currentCase.stakeholders[0].id);
 
   const activeStakeholder = currentCase.stakeholders.find(s => s.id === selectedStakeholderId)!;
