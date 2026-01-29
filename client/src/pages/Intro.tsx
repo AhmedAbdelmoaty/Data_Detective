@@ -1,11 +1,8 @@
-import { useGameStore } from "@/store/gameStore";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Play, ShieldAlert } from "lucide-react";
 
 export default function Intro() {
-  const { startGame } = useGameStore();
-
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 relative overflow-hidden">
       {/* Background Elements */}
@@ -45,7 +42,7 @@ export default function Intro() {
           </p>
         </div>
 
-        <Link href="/hypotheses" onClick={startGame}>
+        <Link href="/office">
           <button
             className="
             group relative px-10 py-5 bg-primary text-primary-foreground text-xl font-bold rounded-xl 
