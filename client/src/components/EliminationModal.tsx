@@ -12,13 +12,11 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { Hypothesis } from "@shared/schema";
-
 interface EliminationModalProps {
   hypothesis: Hypothesis;
   onClose: () => void;
   onConfirm: (justifications: { type: 'evidence' | 'interview' | 'data'; id: string }[]) => void;
 }
-
 export function EliminationModal({ hypothesis, onClose, onConfirm }: EliminationModalProps) {
   const { 
     getDiscoveredEvidence, 
@@ -26,33 +24,33 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
     getDiscoveredInsights 
   } = useGameStore();
   
-  const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'interview' | 'data'; id: string }[]>([]);
+    const { toast } = useToast();
+const [selectedItems, setSelectedItems] = useState<{ type: 'evidence' | 'interview' | 'data'; id: string }[]>([]);
   
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
   const discoveredInsights = getDiscoveredInsights();
   
   const hasAnyDiscoveries = discoveredEvidence.length > 0 || completedInterviews.length > 0 || discoveredInsights.length > 0;
-
   const toggleItem = (type: 'evidence' | 'interview' | 'data', id: string) => {
-    const exists = selectedItems.some(item => item.type === type && item.id === id);
-    if (exists) {
-      setSelectedItems(selectedItems.filter(item => !(item.type === type && item.id === id)));
-    } else {
-      setSelectedItems([...selectedItems, { type, id }]);
-    }
+    const key = `${type}:${id}`;
+    setSelectedItems((prev) => {
+      const exists = prev.some((item) => item.type === type && item.id === id);
+      if (!exists && prev.length >= 2) {
+        toast({ title: 'حد الأسباب', description: 'اختر سبب واحد أو اثنين فقط.' });
+        return prev;
+      }
+      return exists ? prev.filter((item) => `${item.type}:${item.id}` !== key) : [...prev, { type, id }];
+    });
   };
-
   const isSelected = (type: 'evidence' | 'interview' | 'data', id: string) => {
     return selectedItems.some(item => item.type === type && item.id === id);
   };
-
   const handleConfirm = () => {
     if (selectedItems.length > 0) {
       onConfirm(selectedItems);
     }
   };
-
   return (
     <AnimatePresence>
       <motion.div
@@ -91,7 +89,6 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
               <div className="text-sm text-muted-foreground mt-1">{hypothesis.description}</div>
             </div>
           </div>
-
           <div className="p-6 overflow-y-auto max-h-[50vh] space-y-6">
             {!hasAnyDiscoveries ? (
               <div className="text-center py-8">
@@ -131,7 +128,7 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                             </div>
                             <div>
                               <div className="font-medium text-foreground">{ev.title}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{ev.description}</div>
+                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">{ev.description}</div>
                             </div>
                           </div>
                         </button>
@@ -139,7 +136,6 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                     </div>
                   </div>
                 )}
-
                 {completedInterviews.length > 0 && (
                   <div>
                     <h3 className="font-bold text-foreground flex items-center gap-2 mb-3">
@@ -169,7 +165,7 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                             <div>
                               <div className="text-xs text-muted-foreground mb-1">{interview.stakeholderName}</div>
                               <div className="font-medium text-foreground">{interview.text}</div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-2">"{interview.response}"</div>
+                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">"{interview.response}"</div>
                             </div>
                           </div>
                         </button>
@@ -177,7 +173,6 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
                     </div>
                   </div>
                 )}
-
                 {discoveredInsights.length > 0 && (
                   <div>
                     <h3 className="font-bold text-foreground flex items-center gap-2 mb-3">
@@ -217,7 +212,6 @@ export function EliminationModal({ hypothesis, onClose, onConfirm }: Elimination
               </>
             )}
           </div>
-
           <div className="p-6 border-t border-border flex items-center justify-between gap-4">
             <button
               onClick={onClose}
