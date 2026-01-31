@@ -63,8 +63,14 @@ interface GameState {
   getEliminationJustification: (hypothesisId: string) => EliminationJustification | undefined;
 
   getDiscoveredEvidence: () => Case["evidence"];
-  getCompletedInterviews: () => { id: string; stakeholderName: string; text: string; response: string }[];
-  getDiscoveredInsights: () => { id: string; datasetName: string; description: string }[];
+  getCompletedInterviews: () => {
+    id: string;
+    stakeholderName: string;
+    text: string;
+    response: string;
+    infoSummary: string;
+  }[];
+  getDiscoveredInsights: () => { id: string; datasetName: string; title: string; description: string }[];
 }
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -420,11 +426,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getCompletedInterviews: () => {
     const state = get();
-    const results: { id: string; stakeholderName: string; text: string; response: string }[] = [];
+    const results: {
+      id: string;
+      stakeholderName: string;
+      text: string;
+      response: string;
+      infoSummary: string;
+    }[] = [];
     for (const s of state.currentCase.stakeholders) {
       for (const q of s.questions) {
         if (state.interviewedIds.includes(q.id)) {
-          results.push({ id: q.id, stakeholderName: s.name, text: q.text, response: q.response });
+          results.push({
+            id: q.id,
+            stakeholderName: s.name,
+            text: q.text,
+            response: q.response,
+            infoSummary: q.infoSummary || `${s.name}: ${q.response}`,
+          });
         }
       }
     }
@@ -433,11 +451,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getDiscoveredInsights: () => {
     const state = get();
-    const res: { id: string; datasetName: string; description: string }[] = [];
+    const res: { id: string; datasetName: string; title: string; description: string }[] = [];
     for (const ds of state.currentCase.dataSets) {
       for (const ins of ds.insights) {
         if (state.discoveredDataInsightIds.includes(ins.id)) {
-          res.push({ id: ins.id, datasetName: ds.name, description: ins.description });
+          res.push({ id: ins.id, datasetName: ds.name, title: ins.title, description: ins.description });
         }
       }
     }

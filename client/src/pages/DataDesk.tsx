@@ -131,10 +131,15 @@ export default function DataDesk() {
                     )}
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">{ds.name}</div>
-                      <div className={cn(
-                        "font-medium",
-                        discovered ? "text-foreground" : "text-muted-foreground"
-                      )}>
+                      <div
+                        className={cn(
+                          "font-medium",
+                          discovered ? "text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        {insight.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
                         {insight.description}
                       </div>
                     </div>

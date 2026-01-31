@@ -16,7 +16,7 @@ export const case001Rules = {
     locks: [] as ReasonRef[],
     traps: [] as ReasonRef[],
     // دعم: (جزء ضعيف) من التسويق + (قوي) من المبيعات + (قوي) من البيانات
-    supports: ["interview:q1_1", "interview:q2_2", "data:insight_b", "data:insight_a"] as ReasonRef[],
+    supports: ["interview:q1_1", "interview:q2_2", "data:insight_leads_quality_combined"] as ReasonRef[],
   },
 
   // H3: ركود السوق

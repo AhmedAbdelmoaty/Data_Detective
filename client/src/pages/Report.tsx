@@ -85,14 +85,14 @@ export default function Report() {
       type: "interview",
       id: i.id,
       title: i.stakeholderName,
-      detail: `سؤال: ${i.text}\nإجابة: ${i.response}`,
+      detail: i.infoSummary,
     }));
 
     const dataItems: InfoItem[] = discoveredInsights.map((ins) => ({
       key: `data:${ins.id}`,
       type: "data",
       id: ins.id,
-      title: ins.datasetName,
+      title: ins.title,
       detail: ins.description,
     }));
 

@@ -49,6 +49,7 @@ export interface InterviewQuestion {
   id: string;
   text: string; // Arabic question
   response: string; // Arabic response
+  infoSummary?: string; // Short contextual summary for info lists
   cost: number; // Time cost
   unlocks?: string; // ID of evidence or data it might unlock (optional)
 }
@@ -63,6 +64,7 @@ export interface Stakeholder {
 
 export interface DataInsight {
   id: string;
+  title: string;
   description: string; // What pattern or insight this represents
 }
 

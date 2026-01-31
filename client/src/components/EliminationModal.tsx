@@ -203,10 +203,7 @@ export function EliminationModal({
                                 {interview.stakeholderName}
                               </div>
                               <div className="font-medium text-foreground">
-                                {interview.text}
-                              </div>
-                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3">
-                                "{interview.response}"
+                                {interview.infoSummary}
                               </div>
                             </div>
                           </div>
@@ -252,6 +249,9 @@ export function EliminationModal({
                                 {insight.datasetName}
                               </div>
                               <div className="font-medium text-foreground">
+                                {insight.title}
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1 line-clamp-3 whitespace-pre-line">
                                 {insight.description}
                               </div>
                             </div>
