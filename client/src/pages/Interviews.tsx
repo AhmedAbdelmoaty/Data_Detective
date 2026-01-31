@@ -7,12 +7,12 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Interviews() {
-  const { gameStatus, currentCase, interviewedIds, askQuestion } = useGameStore();
+  const { gameStatus, currentCase, interviewedIds, askQuestion, hasVisitedOffice } = useGameStore();
   const [_, setLocation] = useLocation();
 
   useEffect(() => {
-    if (gameStatus === "briefing") setLocation("/office");
-  }, [gameStatus, setLocation]);
+    if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, hasVisitedOffice, setLocation]);
   const [selectedStakeholderId, setSelectedStakeholderId] = useState(currentCase.stakeholders[0].id);
 
   const activeStakeholder = currentCase.stakeholders.find(s => s.id === selectedStakeholderId)!;

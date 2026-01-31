@@ -40,12 +40,13 @@ export default function HypothesisBoard() {
     getDiscoveredEvidence,
     getCompletedInterviews,
     getDiscoveredInsights,
+    hasVisitedOffice,
   } = useGameStore();
   const [_, setLocation] = useLocation();
 
   useEffect(() => {
-    if (gameStatus === "briefing") setLocation("/office");
-  }, [gameStatus, setLocation]);
+    if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, hasVisitedOffice, setLocation]);
 
 
   const [selectedHypothesis, setSelectedHypothesis] = useState<Hypothesis | null>(null);

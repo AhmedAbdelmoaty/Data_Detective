@@ -8,12 +8,12 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export default function DataDesk() {
-  const { gameStatus, currentCase, discoverDataInsight, discoveredDataInsightIds } = useGameStore();
+  const { gameStatus, currentCase, discoverDataInsight, discoveredDataInsightIds, hasVisitedOffice } = useGameStore();
   const [_, setLocation] = useLocation();
 
   useEffect(() => {
-    if (gameStatus === "briefing") setLocation("/office");
-  }, [gameStatus, setLocation]);
+    if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, hasVisitedOffice, setLocation]);
 
   // Level 1 case uses two simple charts:
   // 1) الاستفسارات مقابل المبيعات (leads vs sales)

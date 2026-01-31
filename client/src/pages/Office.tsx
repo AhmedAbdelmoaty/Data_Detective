@@ -1,10 +1,15 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Briefcase, Clock, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { useGameStore } from "@/store/gameStore";
 
 export default function Office() {
-  const { currentCase, time, startGame } = useGameStore();
+  const { currentCase, time, startGame, visitOffice } = useGameStore();
+
+  useEffect(() => {
+    visitOffice();
+  }, [visitOffice]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-br from-background via-background to-secondary/20">
@@ -30,7 +35,9 @@ export default function Office() {
           <div className="space-y-6">
             <div className="p-6 rounded-xl bg-secondary/20 border border-white/5">
               <h2 className="text-xl font-bold text-foreground mb-3">{currentCase.title}</h2>
-              <p className="text-muted-foreground leading-relaxed">{currentCase.description}</p>
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                {currentCase.managerBriefing}
+              </p>
             </div>
 
             <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border/30">
