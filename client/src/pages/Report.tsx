@@ -54,13 +54,14 @@ export default function Report() {
     getEliminationJustification,
     submitConclusion,
     resetGame,
+    hasVisitedOffice,
   } = useGameStore();
 
   const [result, setResult] = useState<ReportResult | null>(null);
 
   useEffect(() => {
-    if (gameStatus === "briefing") setLocation("/office");
-  }, [gameStatus, setLocation]);
+    if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, hasVisitedOffice, setLocation]);
 
   const remainingHypotheses = getRemainingHypotheses();
   const isReadyToReport = remainingHypotheses.length === 1;

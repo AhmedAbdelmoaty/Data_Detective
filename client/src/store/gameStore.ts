@@ -38,10 +38,12 @@ interface GameState {
   finalSupportJustifications: JustificationItem[];
 
   gameStatus: "briefing" | "playing" | "solved" | "failed";
+  hasVisitedOffice: boolean;
 
   // Actions
   startGame: () => void;
   resetGame: () => void;
+  visitOffice: () => void;
 
   visitEvidence: (evidenceId: string, cost: number) => void;
   askQuestion: (questionId: string, cost: number) => void;
@@ -272,8 +274,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   finalSupportJustifications: [],
 
   gameStatus: "briefing",
+  hasVisitedOffice: false,
 
   startGame: () => set({ gameStatus: "playing" }),
+
+  visitOffice: () => set({ hasVisitedOffice: true }),
 
   resetGame: () =>
     set({
@@ -286,6 +291,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       selectedHypothesisId: null,
       finalSupportJustifications: [],
       gameStatus: "briefing",
+      hasVisitedOffice: false,
     }),
 
   visitEvidence: (evidenceId, cost) =>

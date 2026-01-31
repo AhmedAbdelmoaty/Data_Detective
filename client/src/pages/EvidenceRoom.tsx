@@ -6,11 +6,11 @@ import { Search } from "lucide-react";
 
 export default function EvidenceRoom() {
   const [_, setLocation] = useLocation();
-  const { gameStatus, currentCase, visitedEvidenceIds, visitEvidence } = useGameStore();
+  const { gameStatus, currentCase, visitedEvidenceIds, visitEvidence, hasVisitedOffice } = useGameStore();
 
   useEffect(() => {
-    if (gameStatus === "briefing") setLocation("/office");
-  }, [gameStatus, setLocation]);
+    if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
+  }, [gameStatus, hasVisitedOffice, setLocation]);
 
   return (
     <div className="p-8 h-full flex flex-col">

@@ -79,6 +79,7 @@ export interface EliminationJustification {
 export interface Case {
   id: string;
   title: string;
+  managerBriefing: string;
   briefing: {
     text: string;
     sender: string;
