@@ -1,26 +1,41 @@
 import { create } from "zustand";
 import { Case, Hypothesis, EliminationJustification } from "@shared/schema";
 import { case001 } from "../content/cases/case001";
-import { case001Rules, ReasonRef } from "../content/cases/case001Rules";
+import { case001Rules, ReasonRef, SupportRule } from "../content/cases/case001Rules";
 
 type JustificationItem = { type: "evidence" | "interview" | "data"; id: string };
 
-type EvaluationLevel = "strong" | "good" | "mixed" | "weak" | "trap" | "irrelevant";
+type EliminationLabel = "very_convincing" | "convincing" | "weak" | "misleading";
+type SupportLabel = "very_strong" | "strong" | "weak" | "misleading";
 
-export type StepEvaluation = {
-  level: EvaluationLevel;
-  points: number; // internal scoring only
-  note: string; // simple, non-technical feedback
+export type EliminationEvaluation = {
+  label: EliminationLabel;
+  note: string;
+  coverage: number;
+  selectedLocks: number;
+  totalLocks: number;
+  hasTrap: boolean;
+};
+
+export type SupportEvaluation = {
+  label: SupportLabel;
+  note: string;
+  primaryCount: number;
+  secondaryCount: number;
+  hasMisleading: boolean;
 };
 
 export type ReportResult = {
   accepted: boolean;
-  correctHypothesis: boolean;
   managerMessage: string;
-  scorePercent: number;
+  progress: {
+    alternativesClosure: number;
+    reasoningQuality: number;
+    supportStrength: number;
+  };
   breakdown: {
-    eliminations: Record<string, StepEvaluation>;
-    finalSupport: StepEvaluation | null;
+    eliminations: Record<string, EliminationEvaluation>;
+    finalSupport: SupportEvaluation | null;
   };
 };
 
@@ -83,61 +98,87 @@ function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
 
-function evaluateStep(
-  hypothesisId: string,
-  items: JustificationItem[],
-  mode: "eliminate" | "support"
-): StepEvaluation {
-  const rule = (case001Rules as any)[hypothesisId] as { locks: ReasonRef[]; traps: ReasonRef[]; supports: ReasonRef[] } | undefined;
+function evaluateElimination(hypothesisId: string, items: JustificationItem[]): EliminationEvaluation {
+  const rule = (case001Rules as Record<string, { locks: ReasonRef[]; traps: ReasonRef[]; supports: SupportRule }>)[
+    hypothesisId
+  ];
 
   const refs = unique(items.map(toReasonRef));
-  const hasLock = !!rule?.locks?.some(r => refs.includes(r));
-  const hasTrap = !!rule?.traps?.some(r => refs.includes(r));
-  const hasSupport = !!rule?.supports?.some(r => refs.includes(r));
-  const hasAnyRelevant = hasLock || hasTrap || hasSupport;
-  const hasIrrelevant = refs.length > 0 && !hasAnyRelevant;
+  const selectedLocks = rule?.locks?.filter((r) => refs.includes(r)).length ?? 0;
+  const totalLocks = rule?.locks?.length ?? 0;
+  const hasTrap = !!rule?.traps?.some((r) => refs.includes(r));
+  const coverage = totalLocks > 0 ? selectedLocks / totalLocks : 0;
 
-  // Level 1 logic (simple)
-  if (mode === "support") {
-    if (refs.length === 0) return { level: "irrelevant", points: -1, note: "مافيش أسباب دعم كفاية في التقرير." };
-    if (hasTrap && !hasSupport) return { level: "trap", points: -2, note: "السبب اللي اخترته هنا مضلل ومش بيدعم الفكرة." };
-    if (hasSupport && !hasTrap) {
-      const strong = refs.length >= 2 && rule?.supports?.filter(r => refs.includes(r)).length >= 2;
-      return strong
-        ? { level: "strong", points: 2, note: "دعمك واضح ومبني على معلومات مرتبطة." }
-        : { level: "good", points: 1, note: "الدعم مقبول وبيخلي الفكرة أقوى." };
-    }
-    if (hasSupport && hasTrap) return { level: "mixed", points: 0, note: "فيه سبب كويس… بس خلطت معاه سبب مضلل." };
-    return { level: "weak", points: 0, note: "الأسباب هنا عامة ومش بتقوي الفكرة بشكل كافي." };
+  let label: EliminationLabel;
+  if (hasTrap) label = "misleading";
+  else if (coverage === 1 && totalLocks > 0) label = "very_convincing";
+  else if (coverage > 0) label = "convincing";
+  else label = "weak";
+
+  const noteMap: Record<EliminationLabel, string> = {
+    very_convincing: "الأسباب المختارة أقفلت الاحتمال من نقاط فاصلة.",
+    convincing: "في أسباب فارقة، لكن الصورة ما اتقفلتش بالكامل.",
+    weak: "الأسباب الحالية لا تقفل هذا الاحتمال.",
+    misleading: "في الاعتماد على سبب لا يغلق الاحتمال فعليًا.",
+  };
+
+  return {
+    label,
+    note: noteMap[label],
+    coverage,
+    selectedLocks,
+    totalLocks,
+    hasTrap,
+  };
+}
+
+function evaluateSupport(hypothesisId: string, items: JustificationItem[]): SupportEvaluation {
+  const rule = (case001Rules as Record<string, { locks: ReasonRef[]; traps: ReasonRef[]; supports: SupportRule }>)[
+    hypothesisId
+  ];
+
+  const refs = unique(items.map(toReasonRef));
+  const support = rule?.supports || { primary: [], secondary: [], misleading: [] };
+
+  const primaryCount = support.primary.filter((r) => refs.includes(r)).length;
+  const secondaryCount = support.secondary.filter((r) => refs.includes(r)).length;
+  const misleadingCount = support.misleading.filter((r) => refs.includes(r)).length;
+  const otherSelected = refs.filter(
+    (r) => !support.primary.includes(r) && !support.secondary.includes(r) && !support.misleading.includes(r)
+  );
+  const hasMisleading = misleadingCount > 0 || otherSelected.length > 0;
+
+  let label: SupportLabel;
+  if (refs.length === 0) {
+    label = "weak";
+  } else if (primaryCount > 0) {
+    const hasAdditional = primaryCount + secondaryCount > 1;
+    label = hasAdditional ? "very_strong" : "strong";
+  } else if (secondaryCount > 0) {
+    label = "weak";
+  } else {
+    label = "misleading";
   }
 
-  // Elimination mode
-  if (refs.length === 0) return { level: "irrelevant", points: -1, note: "استبعاد بدون أسباب واضح." };
+  const noteMap: Record<SupportLabel, string> = {
+    very_strong: "الدعم اعتمد على سبب فارق ومعه دعم إضافي يثبّت الاتجاه.",
+    strong: "الدعم اعتمد على سبب فارق واضح.",
+    weak: "الدعم جاء من أسباب ثانوية لا تميز بين البدائل.",
+    misleading: "الدعم اعتمد على معلومات لا تفرّق بين البدائل.",
+  };
 
-  if (hasLock && !hasTrap) {
-    const strong = refs.length === 2 && rule?.locks?.filter(r => refs.includes(r)).length === 2;
-    return strong
-      ? { level: "strong", points: 2, note: "استبعاد مقنع جدًا… قفلت الفرضية من أكثر من زاوية." }
-      : { level: "good", points: 1, note: "استبعاد مقنع ومبني على سبب مرتبط." };
-  }
+  const note =
+    hasMisleading && (label === "strong" || label === "very_strong")
+      ? "في دعم فارق، لكن بعض الاختيارات لا تميز بين البدائل."
+      : noteMap[label];
 
-  if (hasTrap && !hasLock) {
-    return { level: "trap", points: -2, note: "السبب اللي اعتمدت عليه هنا ممكن يكون مضلل." };
-  }
-
-  if (hasLock && hasTrap) {
-    return { level: "mixed", points: 0, note: "فيه سبب قوي… لكن خلطت معاه سبب ممكن يضللك." };
-  }
-
-  if (hasSupport && !hasTrap && !hasLock) {
-    return { level: "weak", points: 0, note: "السبب مرتبط جزئيًا، بس مش كفاية لقفل الفرضية بثقة." };
-  }
-
-  if (hasIrrelevant) {
-    return { level: "irrelevant", points: -1, note: "السبب اللي اخترته بعيد عن الفرضية." };
-  }
-
-  return { level: "weak", points: 0, note: "استبعاد محتاج سند أوضح." };
+  return {
+    label,
+    note,
+    primaryCount,
+    secondaryCount,
+    hasMisleading,
+  };
 }
 
 function pickBySeed<T>(seed: string, options: T[]): T {
@@ -163,12 +204,12 @@ function cryptoHash(s: string): number {
 function managerMessageFrom(
   params: {
     accepted: boolean;
-    correctHypothesis: boolean;
-    evals: Record<string, StepEvaluation>;
-    finalSupport: StepEvaluation | null;
+    currentCase: Case;
+    evals: Record<string, EliminationEvaluation>;
+    finalSupport: SupportEvaluation | null;
   }
 ): string {
-  const { accepted, correctHypothesis, evals, finalSupport } = params;
+  const { accepted, evals, finalSupport, currentCase } = params;
 
   const opener = pickBySeed(
     JSON.stringify(params),
@@ -179,91 +220,109 @@ function managerMessageFrom(
     ]
   );
 
-  const h1 = evals["h1"];
-  const h3 = evals["h3"];
-  const h4 = evals["h4"];
-
-  const lineFor = (hid: string, ev?: StepEvaluation) => {
-    const title = case001.hypotheses.find(h => h.id === hid)?.title || "فرضية";
+  const lineFor = (hid: string, ev?: EliminationEvaluation) => {
+    const title = currentCase.hypotheses.find((h) => h.id === hid)?.title || "فرضية";
     if (!ev) return `بالنسبة لـ${title}… محتاج أشوف سند أوضح.`;
 
-    const goodLines = [
-      `استبعادك لـ${title} كان منطقي ومطمّن.`,
-      `اللي كتبته عن ${title} خلّاني أقفلها بنسبة كبيرة.`,
-      `نقطة ${title} اتقفلت عندي بشكل كويس.`,
+    const convincingLines = [
+      `بالنسبة لـ${title}، الاتجاه واضح بس لسه محتاج قفل كامل.`,
+      `في ${title} قربتني من الإغلاق، لكن فيه باب لسه مفتوح.`,
+      `جزء ${title} مقروء، بس محتاج توضيح أكتر عشان يتقفل.`,
     ];
 
-    const strongLines = [
-      `استبعادك لـ${title} كان قوي جدًا… قفلتها من أكثر من زاوية.`,
-      `في ${title} شغلك كان ممتاز وواضح.`,
+    const veryConvincingLines = [
+      `بالنسبة لـ${title}، ده مقفول عندي من أكثر من اتجاه.`,
+      `جزء ${title} اتقفل بشكل واضح في التقرير.`,
     ];
 
     const weakLines = [
-      `في ${title} لسه الحجة مش قوية كفاية.`,
-      `جزء ${title} محتاج سند أقوى قبل ما نقفله.`,
+      `في ${title} لسه الباب مفتوح قدامي.`,
+      `جزء ${title} محتاج سند أكتر قبل ما نقفله.`,
     ];
 
-    const mixedLines = [
-      `في ${title} فيه سبب كويس… بس فيه حاجة خلتني متردد.`,
-      `جزء ${title} متلخبط شوية: فيه نقطة قوية ونقطة تانية مش في مكانها.`,
+    const misleadingLines = [
+      `في ${title} السبب اللي اتبني عليه الإغلاق ما بيقفلش الباب فعليًا.`,
+      `جزء ${title} محتاج مراجعة لأن السبب مش كافي للإغلاق.`,
     ];
 
-    const badLines = [
-      `في ${title} السبب اللي بنيت عليه الاستبعاد مش مريحني.`,
-      `جزء ${title} مش مقنع لحد دلوقتي.`,
-    ];
-
-    switch (ev.level) {
-      case "strong":
-        return pickBySeed(title + "strong" + JSON.stringify(ev), strongLines);
-      case "good":
-        return pickBySeed(title + "good" + JSON.stringify(ev), goodLines);
+    switch (ev.label) {
+      case "very_convincing":
+        return pickBySeed(title + "very" + JSON.stringify(ev), veryConvincingLines);
+      case "convincing":
+        return pickBySeed(title + "conv" + JSON.stringify(ev), convincingLines);
       case "weak":
         return pickBySeed(title + "weak" + JSON.stringify(ev), weakLines);
-      case "mixed":
-        return pickBySeed(title + "mixed" + JSON.stringify(ev), mixedLines);
-      case "trap":
-      case "irrelevant":
-        return pickBySeed(title + "bad" + JSON.stringify(ev), badLines);
+      case "misleading":
+        return pickBySeed(title + "mis" + JSON.stringify(ev), misleadingLines);
       default:
         return pickBySeed(title + "def" + JSON.stringify(ev), weakLines);
     }
   };
 
-  const finalTitle = case001.hypotheses.find(h => h.id === case001.solution.correctHypothesisId)?.title || "الفرضية";
   const finalLine = (() => {
-    if (!correctHypothesis) {
-      return "أما الفرضية اللي اخترتها كسبب رئيسي… أنا مش شايفها ماشية مع الصورة كاملة.";
-    }
     if (!finalSupport) {
-      return `بالنسبة للفرضية اللي اخترتها (${finalTitle})… محتاج أشوف أسباب دعم واضحة في التقرير.`;
+      return "بالنسبة للفرضية الأساسية… محتاج أشوف أسباب دعم واضحة في التقرير.";
     }
-    if (finalSupport.level === "strong" || finalSupport.level === "good") {
-      return `وبالنسبة للفرضية الأساسية، الطرح بتاعك راكب على اللي شفناه في المعلومات.`;
+    if (finalSupport.label === "very_strong" || finalSupport.label === "strong") {
+      return "وبالنسبة للفرضية الأساسية، الطرح قابل للحركة على أرض الواقع.";
     }
-    if (finalSupport.level === "mixed") {
-      return `الفرضية الأساسية ممكن… بس الدعم اللي حطيته متلخبط شوية.`;
+    if (finalSupport.label === "misleading") {
+      return "الفرضية الأساسية محتاجة دعم مختلف قبل ما نتحرك.";
     }
-    return `الفرضية الأساسية محتاجة دعم أقوى علشان نتحرك عليها.`;
+    return "الفرضية الأساسية لسه محتاجة سند أوضح علشان نتحرك عليها.";
   })();
 
   const ending = accepted
     ? pickBySeed(
         "accepted" + JSON.stringify(params),
         [
-          "الخلاصة: التقرير مترابط. هنمشي بالاتجاه ده ونبدأ إجراءات تصحيح الاستهداف وتأهيل العملاء قبل ما يوصلوا للمبيعات.",
-          "الخلاصة: أنا موافق نمشي بالتقرير ده. خلّينا نراجع الاستهداف ومعايير التأهيل، وعايز متابعة سريعة للنتائج.",
+          "الخلاصة: التقرير كافي للحركة. هنمشي بالاتجاه ده ونبدأ إجراءات المراجعة والتصحيح.",
+          "الخلاصة: أقدر أعتمد ده كاتجاه عمل. خلّينا نتحرك ونراجع التنفيذ بسرعة.",
         ]
       )
     : pickBySeed(
         "rejected" + JSON.stringify(params),
         [
-          "الخلاصة: مش هقدر أخد قرار كبير بتقرير بالشكل ده. ارجعلي بمراجعة أقوى للنقط اللي لسه مش مقفولة.",
-          "الخلاصة: لسه في أجزاء مش مقنعة. محتاجين نقفل الاحتمالات قبل ما ناخد خطوة… راجع وحاول تاني.",
+          "الخلاصة: مش هقدر أمشي بقرار كبير بالتقرير بالشكل ده. ارجعلي بعد ما تقفل الأبواب المفتوحة.",
+          "الخلاصة: لسه فيه مساحات مفتوحة. محتاجين نقفل الاحتمالات قبل ما ناخد خطوة… راجع وحاول تاني.",
         ]
       );
 
-  return [opener, lineFor("h1", h1), lineFor("h3", h3), lineFor("h4", h4), finalLine, ending].join("\n");
+  const lines = currentCase.hypotheses
+    .filter((h) => evals[h.id])
+    .map((h) => lineFor(h.id, evals[h.id]));
+
+  return [opener, ...lines, finalLine, ending].join("\n");
+}
+
+function eliminationScore(label: EliminationLabel): number {
+  switch (label) {
+    case "very_convincing":
+      return 1;
+    case "convincing":
+      return 0.7;
+    case "weak":
+      return 0.35;
+    case "misleading":
+      return 0.1;
+    default:
+      return 0.35;
+  }
+}
+
+function supportScore(label: SupportLabel): number {
+  switch (label) {
+    case "very_strong":
+      return 1;
+    case "strong":
+      return 0.75;
+    case "weak":
+      return 0.35;
+    case "misleading":
+      return 0.1;
+    default:
+      return 0.35;
+  }
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -331,14 +390,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       // time cost for making a decision
       const newTime = Math.max(0, state.time - 5);
 
-      const evaluation = evaluateStep(hypothesisId, justifications, "eliminate");
+      const evaluation = evaluateElimination(hypothesisId, justifications);
       let trustDelta = 0;
-      if (evaluation.level === "strong") trustDelta = +2;
-      else if (evaluation.level === "good") trustDelta = +1;
-      else if (evaluation.level === "mixed") trustDelta = -3;
-      else if (evaluation.level === "weak") trustDelta = -2;
-      else if (evaluation.level === "trap") trustDelta = -10;
-      else if (evaluation.level === "irrelevant") trustDelta = -8;
+      if (evaluation.label === "very_convincing") trustDelta = +2;
+      else if (evaluation.label === "convincing") trustDelta = +1;
+      else if (evaluation.label === "weak") trustDelta = -2;
+      else if (evaluation.label === "misleading") trustDelta = -8;
 
       const newTrust = Math.max(0, Math.min(100, state.trust + trustDelta));
 
@@ -368,44 +425,54 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const selectedId = state.selectedHypothesisId;
 
-    const correctHypothesis = selectedId === state.currentCase.solution.correctHypothesisId;
-
     // Evaluate eliminations for the other hypotheses in this case (Level 1 expects 4 hypotheses)
-    const evals: Record<string, StepEvaluation> = {};
+    const evals: Record<string, EliminationEvaluation> = {};
     for (const h of state.currentCase.hypotheses) {
       if (h.id === selectedId) continue;
       const elim = state.eliminations.find((e) => e.hypothesisId === h.id);
-      evals[h.id] = evaluateStep(h.id, elim?.justifications || [], "eliminate");
+      evals[h.id] = evaluateElimination(h.id, elim?.justifications || []);
     }
 
-    const finalSupport =
-      selectedId ? evaluateStep(selectedId, state.finalSupportJustifications, "support") : null;
+    const finalSupport = selectedId ? evaluateSupport(selectedId, state.finalSupportJustifications) : null;
 
-    // Acceptance rule (Level 1):
-    // - correct hypothesis
-    // - all eliminations at least "good"
-    // - final support at least "good"
-    const eliminationsOk = Object.values(evals).every((e) => e.level === "good" || e.level === "strong");
-    const supportOk = finalSupport ? finalSupport.level === "good" || finalSupport.level === "strong" : false;
+    // Acceptance rule (reasoning quality only):
+    // - all eliminations at least convincing (no misleading)
+    // - final support at least strong
+    const eliminationsOk = Object.values(evals).every(
+      (e) => e.label === "very_convincing" || e.label === "convincing"
+    );
+    const supportOk = finalSupport ? finalSupport.label === "very_strong" || finalSupport.label === "strong" : false;
 
-    const accepted = Boolean(correctHypothesis && eliminationsOk && supportOk);
+    const accepted = Boolean(eliminationsOk && supportOk);
 
-    // Score (simple)
-    const maxPoints = 2 * (state.currentCase.hypotheses.length - 1) + 2; // eliminations + final support
-    const gotPoints =
-      Object.values(evals).reduce((a, e) => a + e.points, 0) + (finalSupport?.points || 0);
-    const scorePercent = Math.round(clamp01(gotPoints / maxPoints) * 100);
+    const closureValues = Object.values(evals).map((ev) => (ev.label === "misleading" ? 0 : ev.coverage));
+    const alternativesClosure = Math.round(
+      clamp01(closureValues.reduce((a, v) => a + v, 0) / Math.max(1, closureValues.length)) * 100
+    );
 
-    const message = managerMessageFrom({ accepted, correctHypothesis, evals, finalSupport });
+    const reasoningValues = [
+      ...Object.values(evals).map((ev) => eliminationScore(ev.label)),
+      finalSupport ? supportScore(finalSupport.label) : 0.1,
+    ];
+    const reasoningQuality = Math.round(
+      clamp01(reasoningValues.reduce((a, v) => a + v, 0) / Math.max(1, reasoningValues.length)) * 100
+    );
+
+    const supportStrength = Math.round(clamp01(finalSupport ? supportScore(finalSupport.label) : 0) * 100);
+
+    const message = managerMessageFrom({ accepted, evals, finalSupport, currentCase: state.currentCase });
 
     // Set status
     set({ gameStatus: accepted ? "solved" : "failed" });
 
     return {
       accepted,
-      correctHypothesis,
       managerMessage: message,
-      scorePercent,
+      progress: {
+        alternativesClosure,
+        reasoningQuality,
+        supportStrength,
+      },
       breakdown: { eliminations: evals, finalSupport },
     };
   },
@@ -453,7 +520,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const res: { id: string; datasetName: string; title: string; description: string }[] = [];
     for (const ds of state.currentCase.dataSets) {
-      for (const ins of ds.insights) {
+      for (const ins of ds.insights ?? []) {
         if (state.discoveredDataInsightIds.includes(ins.id)) {
           res.push({ id: ins.id, datasetName: ds.name, title: ins.title, description: ins.description });
         }

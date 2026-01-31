@@ -17,20 +17,31 @@ type InfoItem = {
   detail: string;
 };
 
-function levelBadge(level: string) {
+function eliminationBadge(level: string) {
   switch (level) {
-    case "strong":
-      return { label: "قوي", variant: "default" as const, icon: CheckCircle2 };
-    case "good":
-      return { label: "مقبول", variant: "secondary" as const, icon: CheckCircle2 };
-    case "mixed":
-      return { label: "مختلط", variant: "secondary" as const, icon: AlertTriangle };
+    case "very_convincing":
+      return { label: "مقنع جدًا", variant: "default" as const, icon: CheckCircle2 };
+    case "convincing":
+      return { label: "مقنع", variant: "secondary" as const, icon: CheckCircle2 };
     case "weak":
       return { label: "ضعيف", variant: "outline" as const, icon: AlertTriangle };
-    case "trap":
+    case "misleading":
       return { label: "مضلل", variant: "destructive" as const, icon: AlertTriangle };
-    case "irrelevant":
-      return { label: "بعيد", variant: "destructive" as const, icon: AlertTriangle };
+    default:
+      return { label: "غير واضح", variant: "outline" as const, icon: AlertTriangle };
+  }
+}
+
+function supportBadge(level: string) {
+  switch (level) {
+    case "very_strong":
+      return { label: "قوي جدًا", variant: "default" as const, icon: CheckCircle2 };
+    case "strong":
+      return { label: "قوي", variant: "secondary" as const, icon: CheckCircle2 };
+    case "weak":
+      return { label: "ضعيف", variant: "outline" as const, icon: AlertTriangle };
+    case "misleading":
+      return { label: "مضلل", variant: "destructive" as const, icon: AlertTriangle };
     default:
       return { label: "غير واضح", variant: "outline" as const, icon: AlertTriangle };
   }
@@ -265,12 +276,7 @@ export default function Report() {
       {result && (
         <Card className="glass-card border-border/50">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>رد المدير</span>
-              <Badge variant={result.accepted ? "default" : "destructive"}>
-                {result.accepted ? "مقبول" : "غير مقبول"}
-              </Badge>
-            </CardTitle>
+            <CardTitle>رد المدير</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -279,23 +285,11 @@ export default function Report() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="font-bold">تقييم عام</div>
-                <div className="text-sm text-muted-foreground">{result.scorePercent}%</div>
-              </div>
-              <Progress value={result.scorePercent} />
-              <p className="text-xs text-muted-foreground">
-                التقييم هنا بيقيس “قوة التفكير” بشكل عام (من غير ما يديك الإجابة الجاهزة).
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="font-bold">ملخص نقاط القوة/الضعف</div>
-
+              <div className="font-bold">مراجعة المحلل</div>
               <div className="space-y-3">
                 {Object.entries(result.breakdown.eliminations).map(([hid, ev]) => {
                   const h = currentCase.hypotheses.find((x) => x.id === hid);
-                  const meta = levelBadge(ev.level);
+                  const meta = eliminationBadge(ev.label);
                   const Icon = meta.icon;
                   return (
                     <div key={hid} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
@@ -319,15 +313,45 @@ export default function Report() {
                     </div>
                     {(() => {
                       const ev = result.breakdown.finalSupport;
-                      const meta = ev ? levelBadge(ev.level) : levelBadge("irrelevant");
+                      const meta = ev ? supportBadge(ev.label) : supportBadge("weak");
                       return <Badge variant={meta.variant}>{meta.label}</Badge>;
                     })()}
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {result.breakdown.finalSupport?.note || "مافيش أسباب دعم كفاية في التقرير."}
+                    {result.breakdown.finalSupport?.note || "الدعم غير كافٍ في التقرير."}
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="font-bold">مؤشرات التقدم</div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>إغلاق البدائل</span>
+                    <span className="text-muted-foreground">{result.progress.alternativesClosure}%</span>
+                  </div>
+                  <Progress value={result.progress.alternativesClosure} />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>جودة الاستدلال</span>
+                    <span className="text-muted-foreground">{result.progress.reasoningQuality}%</span>
+                  </div>
+                  <Progress value={result.progress.reasoningQuality} />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>قوة دعم الفرضية</span>
+                    <span className="text-muted-foreground">{result.progress.supportStrength}%</span>
+                  </div>
+                  <Progress value={result.progress.supportStrength} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                المؤشرات تقيس جودة التفكير فقط، من غير ما تكشف الإجابة أو البديل الصحيح.
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
