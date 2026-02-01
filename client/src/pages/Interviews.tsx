@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useGameStore } from "@/store/gameStore";
-import { Users, MessageSquare, Lock } from "lucide-react";
+import { Users, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,9 +24,7 @@ export default function Interviews() {
           <Users className="w-8 h-8 text-primary" />
           غرفة المقابلات
         </h1>
-        <p className="text-muted-foreground mt-2">
-          ناقش الموظفين الرئيسيين. كل سؤال يكلف وقتاً، اختر بحكمة.
-        </p>
+        <p className="text-muted-foreground mt-2">ناقش الموظفين الرئيسيين واختر الأسئلة المفيدة.</p>
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
@@ -89,7 +87,7 @@ export default function Interviews() {
                         ? "bg-secondary/40 border-border" 
                         : "bg-card border-border/50 hover:border-primary/50 cursor-pointer"
                     )}
-                    onClick={() => !isAsked && askQuestion(q.id, q.cost)}
+                    onClick={() => !isAsked && askQuestion(q.id)}
                   >
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1">
@@ -101,22 +99,15 @@ export default function Interviews() {
                         </div>
                         
                         {isAsked && (
-                          <motion.div 
+                          <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
-                            className="mt-3 pr-6 text-sm text-primary-foreground/90 leading-relaxed bg-primary/10 p-3 rounded-lg"
+                            className="mt-3 pr-6 text-sm text-foreground leading-relaxed bg-primary/10 p-3 rounded-lg"
                           >
                             "{q.response}"
                           </motion.div>
                         )}
                       </div>
-
-                      {!isAsked && (
-                        <div className="flex items-center gap-1 text-xs font-mono text-destructive bg-destructive/10 px-2 py-1 rounded">
-                          <Lock className="w-3 h-3" />
-                          <span>{q.cost} دقيقة</span>
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 );
