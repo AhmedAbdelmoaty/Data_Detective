@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Briefcase, Clock, ArrowRight } from "lucide-react";
+import { Briefcase, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { useGameStore } from "@/store/gameStore";
 
 export default function Office() {
-  const { currentCase, time, startGame, visitOffice } = useGameStore();
+  const { currentCase, startGame, visitOffice } = useGameStore();
 
   useEffect(() => {
     visitOffice();
@@ -38,13 +38,6 @@ export default function Office() {
               <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
                 {currentCase.managerBriefing}
               </p>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border/30">
-              <Clock className="w-5 h-5 text-primary" />
-              <span className="text-sm text-foreground">
-                الوقت المتاح للتحقيق: <span className="font-bold">{time} دقيقة</span>
-              </span>
             </div>
 
             <div className="flex justify-end pt-2">

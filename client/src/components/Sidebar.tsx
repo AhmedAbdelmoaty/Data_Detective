@@ -22,7 +22,7 @@ const items = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { time, trust, getRemainingHypotheses, currentCase, eliminations } = useGameStore();
+  const { trust, getRemainingHypotheses, currentCase, eliminations } = useGameStore();
   const remainingHypotheses = getRemainingHypotheses();
   const totalHypotheses = currentCase.hypotheses.length;
   const eliminatedCount = eliminations.length;
@@ -44,21 +44,6 @@ export function Sidebar() {
       <div className="p-4 space-y-4">
         {/* Resource Monitor */}
         <div className="bg-secondary/50 rounded-xl p-4 border border-white/5 space-y-3">
-          <div>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-muted-foreground">الوقت المتبقي</span>
-              <span className={cn("font-mono font-bold", time < 20 ? "text-destructive" : "text-primary")}>
-                {time}%
-              </span>
-            </div>
-            <div className="h-2 bg-background rounded-full overflow-hidden">
-              <div 
-                className={cn("h-full transition-all duration-500", time < 20 ? "bg-destructive" : "bg-primary")} 
-                style={{ width: `${time}%` }}
-              />
-            </div>
-          </div>
-          
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-muted-foreground">الثقة</span>

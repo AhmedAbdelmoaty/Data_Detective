@@ -28,6 +28,7 @@ interface GameState {
   currentCase: Case;
   time: number;
   trust: number;
+  reportAttemptsLeft: number;
 
   visitedEvidenceIds: string[];
   interviewedIds: string[]; // question ids
@@ -270,6 +271,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentCase: case001,
   time: case001.resources.initialTime,
   trust: case001.resources.initialTrust,
+  reportAttemptsLeft: 3,
 
   visitedEvidenceIds: [],
   interviewedIds: [],
@@ -282,7 +284,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameStatus: "briefing",
   hasVisitedOffice: false,
 
-  startGame: () => set({ gameStatus: "playing" }),
+  startGame: () => set({ gameStatus: "playing", reportAttemptsLeft: 3 }),
 
   visitOffice: () => set({ hasVisitedOffice: true }),
 
@@ -290,6 +292,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       time: case001.resources.initialTime,
       trust: case001.resources.initialTrust,
+      reportAttemptsLeft: 3,
       visitedEvidenceIds: [],
       interviewedIds: [],
       discoveredDataInsightIds: [],
@@ -302,35 +305,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   visitEvidence: (evidenceId, cost) =>
     set((state) => {
-      if (state.time <= 0) return state;
       if (state.visitedEvidenceIds.includes(evidenceId)) return state;
-      const newTime = Math.max(0, state.time - cost);
-      return { visitedEvidenceIds: [...state.visitedEvidenceIds, evidenceId], time: newTime };
+      return { visitedEvidenceIds: [...state.visitedEvidenceIds, evidenceId] };
     }),
 
   askQuestion: (questionId, cost) =>
     set((state) => {
-      if (state.time <= 0) return state;
       if (state.interviewedIds.includes(questionId)) return state;
-      const newTime = Math.max(0, state.time - cost);
-      return { interviewedIds: [...state.interviewedIds, questionId], time: newTime };
+      return { interviewedIds: [...state.interviewedIds, questionId] };
     }),
 
   discoverDataInsight: (insightId) =>
     set((state) => {
-      if (state.time <= 0) return state;
       if (state.discoveredDataInsightIds.includes(insightId)) return state;
-      // تسجيل رؤية البيانات يكلف وقت بسيط (علشان ما تبقاش "زر مكافأة")
-      const newTime = Math.max(0, state.time - 5);
-      return { discoveredDataInsightIds: [...state.discoveredDataInsightIds, insightId], time: newTime };
+      return { discoveredDataInsightIds: [...state.discoveredDataInsightIds, insightId] };
     }),
 
   eliminateHypothesis: (hypothesisId, justifications) =>
     set((state) => {
-      if (state.time <= 0) return state;
-      // time cost for making a decision
-      const newTime = Math.max(0, state.time - 5);
-
       const evaluation = evaluateStep(hypothesisId, justifications, "eliminate");
       let trustDelta = 0;
       if (evaluation.level === "strong") trustDelta = +2;
@@ -351,7 +343,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         timestamp: Date.now(),
       };
 
-      return { eliminations: [...filteredElims, elimination], time: newTime, trust: newTrust };
+      return { eliminations: [...filteredElims, elimination], trust: newTrust };
     }),
 
   restoreHypothesis: (hypothesisId) =>
@@ -366,6 +358,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   submitConclusion: () => {
     const state = get();
+    if (state.reportAttemptsLeft <= 0) {
+      return {
+        accepted: false,
+        correctHypothesis: false,
+        managerMessage: "المحاولات خلصت. لازم تعيد البدء.",
+        scorePercent: 0,
+        breakdown: { eliminations: {}, finalSupport: null },
+      };
+    }
     const selectedId = state.selectedHypothesisId;
 
     const correctHypothesis = selectedId === state.currentCase.solution.correctHypothesisId;
@@ -398,8 +399,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const message = managerMessageFrom({ accepted, correctHypothesis, evals, finalSupport });
 
+    const nextAttemptsLeft = accepted
+      ? state.reportAttemptsLeft
+      : Math.max(0, state.reportAttemptsLeft - 1);
+
     // Set status
-    set({ gameStatus: accepted ? "solved" : "failed" });
+    set({ gameStatus: accepted ? "solved" : "failed", reportAttemptsLeft: nextAttemptsLeft });
 
     return {
       accepted,
