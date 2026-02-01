@@ -44,8 +44,8 @@ export function EvidenceCard({ evidence, isVisited, onVisit }: EvidenceCardProps
           </div>
 
           {!isVisited && (
-            <span className="text-xs font-mono bg-destructive/10 text-destructive px-2 py-1 rounded">
-              -{evidence.cost} دقيقة
+            <span className="text-xs font-mono bg-muted/30 text-muted-foreground px-2 py-1 rounded">
+              جديد
             </span>
           )}
         </div>
@@ -58,7 +58,7 @@ export function EvidenceCard({ evidence, isVisited, onVisit }: EvidenceCardProps
           <p className={cn("text-sm text-muted-foreground leading-relaxed", !isVisited && "blur-sm select-none")}>
             {isVisited
               ? evidence.description
-              : "انقر للكشف عن هذا الدليل وتحليله. سيستهلك ذلك وقتاً من موارد التحقيق."}
+              : "انقر للكشف عن هذا الدليل وتحليله."}
           </p>
         </div>
       </div>

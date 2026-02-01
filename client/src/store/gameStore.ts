@@ -46,8 +46,8 @@ interface GameState {
   resetGame: () => void;
   visitOffice: () => void;
 
-  visitEvidence: (evidenceId: string, cost: number) => void;
-  askQuestion: (questionId: string, cost: number) => void;
+  visitEvidence: (evidenceId: string) => void;
+  askQuestion: (questionId: string) => void;
   discoverDataInsight: (insightId: string) => void;
 
   eliminateHypothesis: (hypothesisId: string, justifications: JustificationItem[]) => void;
@@ -303,13 +303,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       hasVisitedOffice: false,
     }),
 
-  visitEvidence: (evidenceId, cost) =>
+  visitEvidence: (evidenceId) =>
     set((state) => {
       if (state.visitedEvidenceIds.includes(evidenceId)) return state;
       return { visitedEvidenceIds: [...state.visitedEvidenceIds, evidenceId] };
     }),
 
-  askQuestion: (questionId, cost) =>
+  askQuestion: (questionId) =>
     set((state) => {
       if (state.interviewedIds.includes(questionId)) return state;
       return { interviewedIds: [...state.interviewedIds, questionId] };

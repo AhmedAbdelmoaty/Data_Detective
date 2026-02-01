@@ -30,7 +30,7 @@ export default function EvidenceRoom() {
             key={ev.id}
             evidence={ev}
             isVisited={visitedEvidenceIds.includes(ev.id)}
-            onVisit={() => visitEvidence(ev.id, ev.cost)}
+            onVisit={() => visitEvidence(ev.id)}
           />
         ))}
       </div>
