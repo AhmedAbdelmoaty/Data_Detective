@@ -27,8 +27,8 @@ export default function Intro() {
         </h1>
 
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-          لعبة تحليل تعتمد على البيانات. حلل الأرقام، استجوب الشهود، واكشف
-          الحقيقة المخفية خلف الرسوم البيانية.
+          لعبة تحليل تعتمد على البيانات. راجع الأدلة، تناقش مع الأشخاص، واكشف
+          السبب الحقيقي للمشكلة.
         </p>
 
         <div className="bg-card/50 backdrop-blur-sm border border-border p-8 rounded-2xl mb-12 text-right">
@@ -37,8 +37,8 @@ export default function Intro() {
           </h3>
           <p className="text-sm text-slate-300 leading-7">
             شركة عقارية كبرى تعاني من انهيار مفاجئ في المبيعات رغم نجاح حملتها
-            التسويقية. بصفتك محلل بيانات، مهمتك هي الغوص في الأرقام ورسائل
-            البريد الإلكتروني لتحديد السبب الحقيقي قبل إفلاس الشركة.
+            التسويقية. بصفتك محلل بيانات، مهمتك هي الغوص في البيانات لتحديد
+            السبب الحقيقي قبل إفلاس الشركة.
           </p>
         </div>
 
