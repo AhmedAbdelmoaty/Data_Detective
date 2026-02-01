@@ -55,6 +55,7 @@ export default function Report() {
     submitConclusion,
     resetGame,
     hasVisitedOffice,
+    reportAttemptsLeft,
   } = useGameStore();
 
   const [result, setResult] = useState<ReportResult | null>(null);
@@ -66,6 +67,7 @@ export default function Report() {
   const remainingHypotheses = getRemainingHypotheses();
   const isReadyToReport = remainingHypotheses.length === 1;
   const finalHypothesis = isReadyToReport ? remainingHypotheses[0] : null;
+  const attemptsDepleted = reportAttemptsLeft <= 0;
 
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
@@ -128,6 +130,7 @@ export default function Report() {
   };
 
   const handleSubmit = () => {
+    if (attemptsDepleted) return;
     const res = submitConclusion();
     setResult(res);
   };
@@ -151,10 +154,31 @@ export default function Report() {
         <p className="text-muted-foreground">
           اكتب تقريرك بشكل مقنع: استبعاد الفرضيات لازم يكون له أسباب واضحة، وكمان دعم الفرضية النهائية.
         </p>
+        <div className="text-sm text-muted-foreground">
+          المحاولات المتبقية: <span className="font-bold text-foreground">{reportAttemptsLeft}</span>
+        </div>
       </header>
 
+      {attemptsDepleted && (
+        <Card className="glass-card border-border/50">
+          <CardHeader>
+            <CardTitle>انتهت المحاولات</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertDescription>
+                خلّصت كل محاولات التقرير. علشان تكمل، لازم تعيد البداية.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={handleRestart} className="w-full">
+              إعادة المحاولة من البداية
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Locked state (page still visible) */}
-      {!isReadyToReport && (
+      {!isReadyToReport && !attemptsDepleted && (
         <Card className="glass-card border-border/50">
           <CardHeader>
             <CardTitle>التقرير غير جاهز بعد</CardTitle>
@@ -180,7 +204,7 @@ export default function Report() {
       )}
 
       {/* Ready state */}
-      {isReadyToReport && finalHypothesis && (
+      {isReadyToReport && finalHypothesis && !attemptsDepleted && (
         <Card className="glass-card border-border/50">
           <CardHeader>
             <CardTitle>الفرضية المتبقية</CardTitle>
@@ -331,10 +355,12 @@ export default function Report() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => setLocation("/hypotheses")}>
-                الرجوع للوحة الفرضيات
-              </Button>
-              <Button variant="outline" onClick={handleRestart}>
+              {reportAttemptsLeft > 0 && (
+                <Button variant="secondary" onClick={() => setLocation("/hypotheses")}>
+                  الرجوع للوحة الفرضيات
+                </Button>
+              )}
+              <Button variant={reportAttemptsLeft > 0 ? "outline" : "default"} onClick={handleRestart}>
                 إعادة المحاولة من البداية
               </Button>
             </div>
