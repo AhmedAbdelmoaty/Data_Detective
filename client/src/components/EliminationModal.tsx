@@ -75,7 +75,7 @@ export function EliminationModal({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+          className="bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-6 border-b border-border">
@@ -106,7 +106,7 @@ export function EliminationModal({
               </div>
             </div>
           </div>
-          <div className="p-6 overflow-y-auto max-h-[50vh] space-y-6">
+          <div className="p-6 overflow-y-auto flex-1 space-y-6">
             {!hasAnyDiscoveries ? (
               <div className="text-center py-8">
                 <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
@@ -264,7 +264,7 @@ export function EliminationModal({
               </>
             )}
           </div>
-          <div className="p-6 border-t border-border flex items-center justify-between gap-4">
+          <div className="p-6 border-t border-border flex items-center justify-between gap-4 sticky bottom-0 bg-card">
             <button
               onClick={onClose}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"

@@ -35,7 +35,7 @@ export function Sidebar() {
             <LayoutDashboard className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-primary">محقق البيانات</h1>
+            <h1 className="font-bold text-lg text-primary">محلل البيانات</h1>
             <p className="text-xs text-muted-foreground">الإصدار 1.0</p>
           </div>
         </div>
@@ -100,7 +100,7 @@ export function Sidebar() {
             أنت
           </div>
           <div className="text-sm">
-            <p className="font-medium text-foreground">المحقق</p>
+            <p className="font-medium text-foreground">المحلل</p>
             <p className="text-xs text-muted-foreground">متصل الآن</p>
           </div>
         </div>
