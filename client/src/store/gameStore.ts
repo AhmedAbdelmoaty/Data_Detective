@@ -1,26 +1,20 @@
 import { create } from "zustand";
 import { Case, Hypothesis, EliminationJustification } from "@shared/schema";
 import { case001 } from "../content/cases/case001";
-import { case001Rules, ReasonRef } from "../content/cases/case001Rules";
+import { ReasonRef } from "../content/cases/case001Rules";
+import { evaluateElimination, evaluateReport, StepEvaluation, Verdict } from "../lib/reportEvaluator";
 
 type JustificationItem = { type: "evidence" | "interview" | "data"; id: string };
-
-type EvaluationLevel = "strong" | "good" | "mixed" | "weak" | "trap" | "irrelevant";
-
-export type StepEvaluation = {
-  level: EvaluationLevel;
-  points: number; // internal scoring only
-  note: string; // simple, non-technical feedback
-};
 
 export type ReportResult = {
   accepted: boolean;
   correctHypothesis: boolean;
+  verdict: Verdict;
   managerMessage: string;
   scorePercent: number;
   breakdown: {
-    eliminations: Record<string, StepEvaluation>;
-    finalSupport: StepEvaluation | null;
+    eliminations: { hypothesisId: string; evaluation: StepEvaluation }[];
+    finalSupport: StepEvaluation;
   };
 };
 
@@ -74,8 +68,6 @@ interface GameState {
   getDiscoveredInsights: () => { id: string; datasetName: string; title: string; description: string }[];
 }
 
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-
 function toReasonRef(item: JustificationItem): ReasonRef {
   return `${item.type}:${item.id}` as ReasonRef;
 }
@@ -84,187 +76,20 @@ function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
 
-function evaluateStep(
-  hypothesisId: string,
-  items: JustificationItem[],
-  mode: "eliminate" | "support"
-): StepEvaluation {
-  const rule = (case001Rules as any)[hypothesisId] as { locks: ReasonRef[]; traps: ReasonRef[]; supports: ReasonRef[] } | undefined;
-
-  const refs = unique(items.map(toReasonRef));
-  const hasLock = !!rule?.locks?.some(r => refs.includes(r));
-  const hasTrap = !!rule?.traps?.some(r => refs.includes(r));
-  const hasSupport = !!rule?.supports?.some(r => refs.includes(r));
-  const hasAnyRelevant = hasLock || hasTrap || hasSupport;
-  const hasIrrelevant = refs.length > 0 && !hasAnyRelevant;
-
-  // Level 1 logic (simple)
-  if (mode === "support") {
-    if (refs.length === 0) return { level: "irrelevant", points: -1, note: "مافيش أسباب دعم كفاية في التقرير." };
-    if (hasTrap && !hasSupport) return { level: "trap", points: -2, note: "السبب اللي اخترته هنا مضلل ومش بيدعم الفكرة." };
-    if (hasSupport && !hasTrap) {
-      const strong = refs.length >= 2 && rule?.supports?.filter(r => refs.includes(r)).length >= 2;
-      return strong
-        ? { level: "strong", points: 2, note: "دعمك واضح ومبني على معلومات مرتبطة." }
-        : { level: "good", points: 1, note: "الدعم مقبول وبيخلي الفكرة أقوى." };
-    }
-    if (hasSupport && hasTrap) return { level: "mixed", points: 0, note: "فيه سبب كويس… بس خلطت معاه سبب مضلل." };
-    return { level: "weak", points: 0, note: "الأسباب هنا عامة ومش بتقوي الفكرة بشكل كافي." };
+function trustDeltaFromEvaluation(ev: StepEvaluation): number {
+  // trust is not the main mechanic for Level 1, so keep it gentle.
+  switch (ev.grade) {
+    case "strong":
+      return +2;
+    case "medium":
+      return +1;
+    case "weak":
+      return -2;
+    case "trap":
+      return -6;
+    default:
+      return 0;
   }
-
-  // Elimination mode
-  if (refs.length === 0) return { level: "irrelevant", points: -1, note: "استبعاد بدون أسباب واضح." };
-
-  if (hasLock && !hasTrap) {
-    const strong = refs.length === 2 && rule?.locks?.filter(r => refs.includes(r)).length === 2;
-    return strong
-      ? { level: "strong", points: 2, note: "استبعاد مقنع جدًا… قفلت الفرضية من أكثر من زاوية." }
-      : { level: "good", points: 1, note: "استبعاد مقنع ومبني على سبب مرتبط." };
-  }
-
-  if (hasTrap && !hasLock) {
-    return { level: "trap", points: -2, note: "السبب اللي اعتمدت عليه هنا ممكن يكون مضلل." };
-  }
-
-  if (hasLock && hasTrap) {
-    return { level: "mixed", points: 0, note: "فيه سبب قوي… لكن خلطت معاه سبب ممكن يضللك." };
-  }
-
-  if (hasSupport && !hasTrap && !hasLock) {
-    return { level: "weak", points: 0, note: "السبب مرتبط جزئيًا، بس مش كفاية لقفل الفرضية بثقة." };
-  }
-
-  if (hasIrrelevant) {
-    return { level: "irrelevant", points: -1, note: "السبب اللي اخترته بعيد عن الفرضية." };
-  }
-
-  return { level: "weak", points: 0, note: "استبعاد محتاج سند أوضح." };
-}
-
-function pickBySeed<T>(seed: string, options: T[]): T {
-  const h = hashlib(seed);
-  return options[h % options.length];
-}
-
-function hashlib(s: string): number {
-  const hash = cryptoHash(s);
-  return hash;
-}
-
-function cryptoHash(s: string): number {
-  // small deterministic hash (no crypto dependency)
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
-
-function managerMessageFrom(
-  params: {
-    accepted: boolean;
-    correctHypothesis: boolean;
-    evals: Record<string, StepEvaluation>;
-    finalSupport: StepEvaluation | null;
-  }
-): string {
-  const { accepted, correctHypothesis, evals, finalSupport } = params;
-
-  const opener = pickBySeed(
-    JSON.stringify(params),
-    [
-      "قرأت تقريرك كويس.",
-      "اطلّعت على تقريرك بالكامل.",
-      "راجعت اللي كتبته في التقرير.",
-    ]
-  );
-
-  const h1 = evals["h1"];
-  const h3 = evals["h3"];
-  const h4 = evals["h4"];
-
-  const lineFor = (hid: string, ev?: StepEvaluation) => {
-    const title = case001.hypotheses.find(h => h.id === hid)?.title || "فرضية";
-    if (!ev) return `بالنسبة لـ${title}… محتاج أشوف سند أوضح.`;
-
-    const goodLines = [
-      `استبعادك لـ${title} كان منطقي ومطمّن.`,
-      `اللي كتبته عن ${title} خلّاني أقفلها بنسبة كبيرة.`,
-      `نقطة ${title} اتقفلت عندي بشكل كويس.`,
-    ];
-
-    const strongLines = [
-      `استبعادك لـ${title} كان قوي جدًا… قفلتها من أكثر من زاوية.`,
-      `في ${title} شغلك كان ممتاز وواضح.`,
-    ];
-
-    const weakLines = [
-      `في ${title} لسه الحجة مش قوية كفاية.`,
-      `جزء ${title} محتاج سند أقوى قبل ما نقفله.`,
-    ];
-
-    const mixedLines = [
-      `في ${title} فيه سبب كويس… بس فيه حاجة خلتني متردد.`,
-      `جزء ${title} متلخبط شوية: فيه نقطة قوية ونقطة تانية مش في مكانها.`,
-    ];
-
-    const badLines = [
-      `في ${title} السبب اللي بنيت عليه الاستبعاد مش مريحني.`,
-      `جزء ${title} مش مقنع لحد دلوقتي.`,
-    ];
-
-    switch (ev.level) {
-      case "strong":
-        return pickBySeed(title + "strong" + JSON.stringify(ev), strongLines);
-      case "good":
-        return pickBySeed(title + "good" + JSON.stringify(ev), goodLines);
-      case "weak":
-        return pickBySeed(title + "weak" + JSON.stringify(ev), weakLines);
-      case "mixed":
-        return pickBySeed(title + "mixed" + JSON.stringify(ev), mixedLines);
-      case "trap":
-      case "irrelevant":
-        return pickBySeed(title + "bad" + JSON.stringify(ev), badLines);
-      default:
-        return pickBySeed(title + "def" + JSON.stringify(ev), weakLines);
-    }
-  };
-
-  const finalTitle = case001.hypotheses.find(h => h.id === case001.solution.correctHypothesisId)?.title || "الفرضية";
-  const finalLine = (() => {
-    if (!correctHypothesis) {
-      return "أما الفرضية اللي اخترتها كسبب رئيسي… أنا مش شايفها ماشية مع الصورة كاملة.";
-    }
-    if (!finalSupport) {
-      return `بالنسبة للفرضية اللي اخترتها (${finalTitle})… محتاج أشوف أسباب دعم واضحة في التقرير.`;
-    }
-    if (finalSupport.level === "strong" || finalSupport.level === "good") {
-      return `وبالنسبة للفرضية الأساسية، الطرح بتاعك راكب على اللي شفناه في المعلومات.`;
-    }
-    if (finalSupport.level === "mixed") {
-      return `الفرضية الأساسية ممكن… بس الدعم اللي حطيته متلخبط شوية.`;
-    }
-    return `الفرضية الأساسية محتاجة دعم أقوى علشان نتحرك عليها.`;
-  })();
-
-  const ending = accepted
-    ? pickBySeed(
-        "accepted" + JSON.stringify(params),
-        [
-          "الخلاصة: التقرير مترابط. هنمشي بالاتجاه ده ونبدأ إجراءات تصحيح الاستهداف وتأهيل العملاء قبل ما يوصلوا للمبيعات.",
-          "الخلاصة: أنا موافق نمشي بالتقرير ده. خلّينا نراجع الاستهداف ومعايير التأهيل، وعايز متابعة سريعة للنتائج.",
-        ]
-      )
-    : pickBySeed(
-        "rejected" + JSON.stringify(params),
-        [
-          "الخلاصة: مش هقدر أخد قرار كبير بتقرير بالشكل ده. ارجعلي بمراجعة أقوى للنقط اللي لسه مش مقفولة.",
-          "الخلاصة: لسه في أجزاء مش مقنعة. محتاجين نقفل الاحتمالات قبل ما ناخد خطوة… راجع وحاول تاني.",
-        ]
-      );
-
-  return [opener, lineFor("h1", h1), lineFor("h3", h3), lineFor("h4", h4), finalLine, ending].join("\n");
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -323,18 +148,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   eliminateHypothesis: (hypothesisId, justifications) =>
     set((state) => {
-      const evaluation = evaluateStep(hypothesisId, justifications, "eliminate");
-      let trustDelta = 0;
-      if (evaluation.level === "strong") trustDelta = +2;
-      else if (evaluation.level === "good") trustDelta = +1;
-      else if (evaluation.level === "mixed") trustDelta = -3;
-      else if (evaluation.level === "weak") trustDelta = -2;
-      else if (evaluation.level === "trap") trustDelta = -10;
-      else if (evaluation.level === "irrelevant") trustDelta = -8;
-
-      const newTrust = Math.max(0, Math.min(100, state.trust + trustDelta));
-
-      // Remove existing elimination if any
+      // Replace existing elimination for the same hypothesis
       const filteredElims = state.eliminations.filter((e) => e.hypothesisId !== hypothesisId);
 
       const elimination: EliminationJustification = {
@@ -343,13 +157,27 @@ export const useGameStore = create<GameState>((set, get) => ({
         timestamp: Date.now(),
       };
 
-      return { eliminations: [...filteredElims, elimination], trust: newTrust };
+      // Light trust feedback (internal only)
+      const refs = unique(justifications.map(toReasonRef));
+      const ev = evaluateElimination(hypothesisId, refs);
+
+      const trustDelta = trustDeltaFromEvaluation(ev);
+      const newTrust = Math.max(0, Math.min(100, state.trust + trustDelta));
+
+      // IMPORTANT: any change in eliminations invalidates the final report draft.
+      return {
+        eliminations: [...filteredElims, elimination],
+        trust: newTrust,
+        selectedHypothesisId: null,
+        finalSupportJustifications: [],
+      };
     }),
 
   restoreHypothesis: (hypothesisId) =>
     set((state) => ({
       eliminations: state.eliminations.filter((e) => e.hypothesisId !== hypothesisId),
-      selectedHypothesisId: state.selectedHypothesisId === hypothesisId ? null : state.selectedHypothesisId,
+      selectedHypothesisId: null,
+      finalSupportJustifications: [],
     })),
 
   selectFinalHypothesis: (hypothesisId) => set({ selectedHypothesisId: hypothesisId }),
@@ -358,66 +186,97 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   submitConclusion: () => {
     const state = get();
+
     if (state.reportAttemptsLeft <= 0) {
       return {
         accepted: false,
         correctHypothesis: false,
+        verdict: "unconvincing",
         managerMessage: "المحاولات خلصت. لازم تعيد البدء.",
         scorePercent: 0,
-        breakdown: { eliminations: {}, finalSupport: null },
+        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
       };
     }
-    const selectedId = state.selectedHypothesisId;
 
-    const correctHypothesis = selectedId === state.currentCase.solution.correctHypothesisId;
+    const remaining = state.currentCase.hypotheses.filter(
+      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id)
+    );
 
-    // Evaluate eliminations for the other hypotheses in this case (Level 1 expects 4 hypotheses)
-    const evals: Record<string, StepEvaluation> = {};
-    for (const h of state.currentCase.hypotheses) {
-      if (h.id === selectedId) continue;
-      const elim = state.eliminations.find((e) => e.hypothesisId === h.id);
-      evals[h.id] = evaluateStep(h.id, elim?.justifications || [], "eliminate");
+    if (remaining.length !== 1) {
+      return {
+        accepted: false,
+        correctHypothesis: false,
+        verdict: "unconvincing",
+        managerMessage: "لسه التقرير غير جاهز. لازم تفضل فرضية واحدة فقط قبل ما تقدّم التقرير.",
+        scorePercent: 0,
+        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
+      };
     }
 
-    const finalSupport =
-      selectedId ? evaluateStep(selectedId, state.finalSupportJustifications, "support") : null;
+    const finalHypothesisId = remaining[0].id;
 
-    // Acceptance rule (Level 1):
-    // - correct hypothesis
-    // - all eliminations at least "good"
-    // - final support at least "good"
-    const eliminationsOk = Object.values(evals).every((e) => e.level === "good" || e.level === "strong");
-    const supportOk = finalSupport ? finalSupport.level === "good" || finalSupport.level === "strong" : false;
+    // Safety: if user confirmed something else (shouldn't happen after reset), force reconfirm.
+    if (!state.selectedHypothesisId || state.selectedHypothesisId !== finalHypothesisId) {
+      return {
+        accepted: false,
+        correctHypothesis: false,
+        verdict: "unconvincing",
+        managerMessage: "قبل ما تقدّم التقرير، لازم تأكد الفرضية المتبقية كسبب رئيسي.",
+        scorePercent: 0,
+        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
+      };
+    }
 
-    const accepted = Boolean(correctHypothesis && eliminationsOk && supportOk);
+    const eliminatedHypothesisIds = state.currentCase.hypotheses
+      .filter((h) => h.id !== finalHypothesisId)
+      .map((h) => h.id);
 
-    // Score (simple)
-    const maxPoints = 2 * (state.currentCase.hypotheses.length - 1) + 2; // eliminations + final support
-    const gotPoints =
-      Object.values(evals).reduce((a, e) => a + e.points, 0) + (finalSupport?.points || 0);
-    const scorePercent = Math.round(clamp01(gotPoints / maxPoints) * 100);
+    const eliminationReasonsByHypothesis: Record<string, ReasonRef[]> = {};
+    for (const hid of eliminatedHypothesisIds) {
+      const elim = state.eliminations.find((e) => e.hypothesisId === hid);
+      eliminationReasonsByHypothesis[hid] = unique((elim?.justifications ?? []).map(toReasonRef));
+    }
 
-    const message = managerMessageFrom({ accepted, correctHypothesis, evals, finalSupport });
+    const finalSupportReasonRefs = unique(state.finalSupportJustifications.map(toReasonRef));
 
-    const nextAttemptsLeft = accepted
+    const evaluation = evaluateReport({
+      finalHypothesisId,
+      eliminatedHypothesisIds,
+      eliminationReasonsByHypothesis,
+      finalSupportReasonRefs,
+      correctHypothesisId: state.currentCase.solution.correctHypothesisId,
+    });
+
+    const nextAttemptsLeft = evaluation.accepted
       ? state.reportAttemptsLeft
       : Math.max(0, state.reportAttemptsLeft - 1);
 
-    // Set status
-    set({ gameStatus: accepted ? "solved" : "failed", reportAttemptsLeft: nextAttemptsLeft });
+    const nextStatus: GameState["gameStatus"] = evaluation.accepted
+      ? "solved"
+      : nextAttemptsLeft <= 0
+        ? "failed"
+        : "playing";
+
+    set({ reportAttemptsLeft: nextAttemptsLeft, gameStatus: nextStatus });
 
     return {
-      accepted,
-      correctHypothesis,
-      managerMessage: message,
-      scorePercent,
-      breakdown: { eliminations: evals, finalSupport },
+      accepted: evaluation.accepted,
+      correctHypothesis: evaluation.correctHypothesis,
+      verdict: evaluation.verdict,
+      managerMessage: evaluation.managerNarrative,
+      scorePercent: evaluation.percent,
+      breakdown: {
+        eliminations: evaluation.eliminationFeedback,
+        finalSupport: evaluation.finalSupport,
+      },
     };
   },
 
   getRemainingHypotheses: () => {
     const state = get();
-    return state.currentCase.hypotheses.filter((h) => !state.eliminations.some((e) => e.hypothesisId === h.id));
+    return state.currentCase.hypotheses.filter(
+      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id)
+    );
   },
 
   isHypothesisEliminated: (hypothesisId) => get().eliminations.some((e) => e.hypothesisId === hypothesisId),
@@ -438,6 +297,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       response: string;
       infoSummary: string;
     }[] = [];
+
     for (const s of state.currentCase.stakeholders) {
       for (const q of s.questions) {
         if (state.interviewedIds.includes(q.id)) {
