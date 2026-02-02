@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Users, Database, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { FileText, Users, Database, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react";
 
 type InfoItem = {
   key: string;
@@ -17,30 +17,23 @@ type InfoItem = {
   detail: string;
 };
 
-function gradeBadge(grade: string) {
-  switch (grade) {
-    case "strong":
-      return { label: "قوي", variant: "default" as const, icon: CheckCircle2 };
-    case "medium":
-      return { label: "متوسط", variant: "secondary" as const, icon: AlertTriangle };
-    case "weak":
-      return { label: "ضعيف", variant: "outline" as const, icon: AlertTriangle };
-    case "trap":
-      return { label: "فخ", variant: "destructive" as const, icon: XCircle };
-    default:
-      return { label: "غير واضح", variant: "outline" as const, icon: AlertTriangle };
-  }
+function outcomeBadge(outcome: ReportResult["outcome"]) {
+  if (outcome === "accepted") return { label: "مقبول", variant: "default" as const };
+  if (outcome === "review") return { label: "راجع التقرير", variant: "secondary" as const };
+  return { label: "غير مقبول", variant: "destructive" as const };
 }
 
-function verdictMeta(verdict: ReportResult["verdict"]) {
-  switch (verdict) {
-    case "convincing":
-      return { label: "مقنع", variant: "default" as const };
-    case "shaky":
-      return { label: "مهزوز", variant: "secondary" as const };
-    case "unconvincing":
+function statusMeta(status: string) {
+  switch (status) {
+    case "ok":
+      return { label: "صح", variant: "default" as const, icon: CheckCircle2 };
+    case "ok_noisy":
+      return { label: "صح بس فيه زيادة", variant: "secondary" as const, icon: AlertTriangle };
+    case "trap":
+      return { label: "فخ", variant: "destructive" as const, icon: AlertTriangle };
+    case "invalid":
     default:
-      return { label: "غير مقنع", variant: "destructive" as const };
+      return { label: "غير صحيح", variant: "destructive" as const, icon: XCircle };
   }
 }
 
@@ -52,7 +45,6 @@ export default function Report() {
     gameStatus,
     currentCase,
     getRemainingHypotheses,
-    eliminations,
     selectedHypothesisId,
     selectFinalHypothesis,
     finalSupportJustifications,
@@ -65,6 +57,7 @@ export default function Report() {
     resetGame,
     hasVisitedOffice,
     reportAttemptsLeft,
+    eliminations,
   } = useGameStore();
 
   const [result, setResult] = useState<ReportResult | null>(null);
@@ -76,39 +69,20 @@ export default function Report() {
   const remainingHypotheses = getRemainingHypotheses();
   const isReadyToReport = remainingHypotheses.length === 1;
   const finalHypothesis = isReadyToReport ? remainingHypotheses[0] : null;
-  const isConfirmed = Boolean(finalHypothesis && selectedHypothesisId === finalHypothesis.id);
   const attemptsDepleted = reportAttemptsLeft <= 0;
 
-  // Draft key: if anything changes after a result, clear the result to avoid “cached report” bugs.
+  // أي تغيير في المسودة يلغي نتيجة التقرير السابقة (عشان ما يحصلش "محاولة تانية مش بتتحدث")
   const draftKey = useMemo(() => {
-    const elimKey = eliminations
-      .map((e) => ({
-        h: e.hypothesisId,
-        t: e.timestamp,
-        r: (e.justifications || []).map((j) => `${j.type}:${j.id}`).sort(),
-      }))
-      .sort((a, b) => a.h.localeCompare(b.h));
-
-    const supportKey = finalSupportJustifications
-      .map((j) => `${j.type}:${j.id}`)
-      .sort();
-
     return JSON.stringify({
-      remaining: remainingHypotheses.map((h) => h.id).sort(),
-      selected: selectedHypothesisId,
-      supportKey,
-      elimKey,
+      selectedHypothesisId,
+      finalSupportJustifications,
+      eliminations: eliminations.map((e) => ({ hypothesisId: e.hypothesisId, justifications: e.justifications })),
     });
-  }, [eliminations, finalSupportJustifications, remainingHypotheses, selectedHypothesisId]);
-
-  const [resultDraftKey, setResultDraftKey] = useState<string | null>(null);
+  }, [selectedHypothesisId, finalSupportJustifications, eliminations]);
 
   useEffect(() => {
-    if (result && resultDraftKey && draftKey !== resultDraftKey) {
-      setResult(null);
-      setResultDraftKey(null);
-    }
-  }, [draftKey, result, resultDraftKey]);
+    setResult(null);
+  }, [draftKey]);
 
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
@@ -166,17 +140,12 @@ export default function Report() {
   const handleConfirmHypothesis = () => {
     if (!finalHypothesis) return;
     selectFinalHypothesis(finalHypothesis.id);
-    // reset any previous run support choices
-    setFinalSupportJustifications([]);
-    setResult(null);
-    setResultDraftKey(null);
   };
 
   const handleSubmit = () => {
     if (attemptsDepleted) return;
     const res = submitConclusion();
     setResult(res);
-    setResultDraftKey(draftKey);
   };
 
   const handleRestart = () => {
@@ -196,7 +165,7 @@ export default function Report() {
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">التقرير النهائي</h1>
         <p className="text-muted-foreground">
-          اكتب تقريرك بشكل مقنع: استبعاد الفرضيات لازم يكون له أسباب واضحة، وكمان دعم الفرضية النهائية.
+          هدف التقرير إنك تثبت إنك قفلت الاحتمالات بهدوء… من غير حشو، ومن غير قفزات.
         </p>
         <div className="text-sm text-muted-foreground">
           المحاولات المتبقية: <span className="font-bold text-foreground">{reportAttemptsLeft}</span>
@@ -210,9 +179,7 @@ export default function Report() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
-              <AlertDescription>
-                خلّصت كل محاولات التقرير. علشان تكمل، لازم تعيد البداية.
-              </AlertDescription>
+              <AlertDescription>خلصت كل محاولات التقرير. علشان تكمل، لازم تعيد البداية.</AlertDescription>
             </Alert>
             <Button onClick={handleRestart} className="w-full">
               إعادة المحاولة من البداية
@@ -221,7 +188,6 @@ export default function Report() {
         </Card>
       )}
 
-      {/* Locked state (page still visible) */}
       {!isReadyToReport && !attemptsDepleted && (
         <Card className="glass-card border-border/50">
           <CardHeader>
@@ -230,24 +196,21 @@ export default function Report() {
           <CardContent className="space-y-4">
             <Alert>
               <AlertDescription>
-                لازم تفضل <b>فرضية واحدة فقط</b> قبل ما تقدّم التقرير.
+                لازم تسيب <b>فرضية واحدة فقط</b> قبل ما تقدّم التقرير.
                 <br />
-                ارجع للوحة الفرضيات واستبعد الباقي بمعلومات واضحة.
+                ارجع للوحة الفرضيات واستبعد الباقي بأسباب واضحة.
               </AlertDescription>
             </Alert>
-
             <div className="text-sm text-muted-foreground">
               المتبقي الآن: <b>{remainingHypotheses.length}</b> فرضيات
             </div>
-
-            <Button variant="secondary" onClick={() => setLocation("/hypotheses")}>
+            <Button variant="secondary" onClick={() => setLocation("/hypotheses")}> 
               الرجوع للوحة الفرضيات
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Ready state */}
       {isReadyToReport && finalHypothesis && !attemptsDepleted && (
         <Card className="glass-card border-border/50">
           <CardHeader>
@@ -259,7 +222,7 @@ export default function Report() {
               <div className="text-sm text-muted-foreground mt-1">{finalHypothesis.description}</div>
             </div>
 
-            {!isConfirmed ? (
+            {!selectedHypothesisId ? (
               <Button onClick={handleConfirmHypothesis} className="w-full">
                 تأكيد هذه الفرضية كسبب رئيسي
               </Button>
@@ -316,11 +279,7 @@ export default function Report() {
                   </div>
                 )}
 
-                <Button
-                  onClick={handleSubmit}
-                  className="w-full"
-                  disabled={finalSupportJustifications.length === 0}
-                >
+                <Button onClick={handleSubmit} className="w-full" disabled={finalSupportJustifications.length === 0}>
                   تقديم التقرير
                 </Button>
               </div>
@@ -329,18 +288,12 @@ export default function Report() {
         </Card>
       )}
 
-      {/* Result */}
       {result && (
         <Card className="glass-card border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>رد المدير</span>
-              <div className="flex items-center gap-2">
-                <Badge variant={verdictMeta(result.verdict).variant}>{verdictMeta(result.verdict).label}</Badge>
-                <Badge variant={result.accepted ? "default" : "secondary"}>
-                  {result.accepted ? "هنمشي بالتقرير" : "مش هنمشي دلوقتي"}
-                </Badge>
-              </div>
+              <Badge variant={outcomeBadge(result.outcome).variant}>{outcomeBadge(result.outcome).label}</Badge>
             </CardTitle>
           </CardHeader>
 
@@ -351,54 +304,59 @@ export default function Report() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="font-bold">تقييم عام</div>
+                <div className="font-bold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  جودة التقرير
+                </div>
                 <div className="text-sm text-muted-foreground">{result.scorePercent}%</div>
               </div>
               <Progress value={result.scorePercent} />
               <p className="text-xs text-muted-foreground">
-                التقييم هنا بيقيس “قوة التفكير” بشكل عام (من غير ما يديك الإجابة الجاهزة).
+                دي جودة تقريرك (مش "حل صح/غلط" بس). كل ضوضاء أو قرار غير صحيح بيأثر.
               </p>
             </div>
 
             <div className="space-y-3">
-              <div className="font-bold">ملخص واضح (بدون كشف الإجابة)</div>
-
+              <div className="font-bold">سجل القرارات</div>
               <div className="space-y-3">
-                {result.breakdown.eliminations.map(({ hypothesisId, evaluation }) => {
-                  const h = currentCase.hypotheses.find((x) => x.id === hypothesisId);
-                  const meta = gradeBadge(evaluation.grade);
+                {result.ledger.map((s) => {
+                  const title = currentCase.hypotheses.find((h) => h.id === s.hypothesisId)?.title || s.hypothesisId;
+                  const meta = statusMeta(s.status);
                   const Icon = meta.icon;
+                  const label = s.kind === "support" ? `دعم: ${title}` : `استبعاد: ${title}`;
                   return (
-                    <div key={hypothesisId} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
+                    <div key={s.stepKey} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <Icon className="w-4 h-4" />
-                          <div className="font-bold text-sm">{h?.title || hypothesisId}</div>
+                          <div className="font-bold text-sm">{label}</div>
                         </div>
                         <Badge variant={meta.variant}>{meta.label}</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-2">{evaluation.message}</div>
+                      <div className="text-xs text-muted-foreground mt-2">{s.note}</div>
                     </div>
                   );
                 })}
-
-                <div className="p-4 rounded-xl border border-border/40 bg-secondary/10">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <div className="font-bold text-sm">دعم الفرضية النهائية</div>
-                    </div>
-                    {(() => {
-                      const meta = gradeBadge(result.breakdown.finalSupport.grade);
-                      return <Badge variant={meta.variant}>{meta.label}</Badge>;
-                    })()}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {result.breakdown.finalSupport.message}
-                  </div>
-                </div>
               </div>
             </div>
+
+            {result.issues.length > 0 && (
+              <div className="space-y-3">
+                <div className="font-bold">ملاحظات تساعدك تتحسن (بدون كشف الحل)</div>
+                <div className="space-y-3">
+                  {result.issues.map((g) => (
+                    <div key={g.type} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
+                      <div className="font-bold text-sm mb-2">{g.title}</div>
+                      <ul className="list-disc pr-5 space-y-1 text-xs text-muted-foreground">
+                        {g.items.map((it, idx) => (
+                          <li key={idx}>{it}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-3">
               {reportAttemptsLeft > 0 && (
@@ -414,7 +372,6 @@ export default function Report() {
         </Card>
       )}
 
-      {/* History summary */}
       <Card className="glass-card border-border/50">
         <CardHeader>
           <CardTitle>ملخص تقريرك حتى الآن</CardTitle>
