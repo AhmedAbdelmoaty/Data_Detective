@@ -1,22 +1,9 @@
 import { create } from "zustand";
 import { Case, Hypothesis, EliminationJustification } from "@shared/schema";
 import { case001 } from "../content/cases/case001";
-import { ReasonRef } from "../content/cases/case001Rules";
-import { evaluateElimination, evaluateReport, StepEvaluation, Verdict } from "../lib/reportEvaluator";
+import { evaluateCase001Report, ReportEvaluation, JustificationItem } from "@/lib/reportEvaluator";
 
-type JustificationItem = { type: "evidence" | "interview" | "data"; id: string };
-
-export type ReportResult = {
-  accepted: boolean;
-  correctHypothesis: boolean;
-  verdict: Verdict;
-  managerMessage: string;
-  scorePercent: number;
-  breakdown: {
-    eliminations: { hypothesisId: string; evaluation: StepEvaluation }[];
-    finalSupport: StepEvaluation;
-  };
-};
+export type ReportResult = ReportEvaluation;
 
 interface GameState {
   currentCase: Case;
@@ -29,7 +16,7 @@ interface GameState {
   discoveredDataInsightIds: string[];
 
   eliminations: EliminationJustification[];
-  selectedHypothesisId: string | null;
+  selectedHypothesisId: string | null; // confirmation step on Report page
   finalSupportJustifications: JustificationItem[];
 
   gameStatus: "briefing" | "playing" | "solved" | "failed";
@@ -68,28 +55,23 @@ interface GameState {
   getDiscoveredInsights: () => { id: string; datasetName: string; title: string; description: string }[];
 }
 
-function toReasonRef(item: JustificationItem): ReasonRef {
-  return `${item.type}:${item.id}` as ReasonRef;
-}
-
-function unique<T>(arr: T[]): T[] {
-  return Array.from(new Set(arr));
-}
-
-function trustDeltaFromEvaluation(ev: StepEvaluation): number {
-  // trust is not the main mechanic for Level 1, so keep it gentle.
-  switch (ev.grade) {
-    case "strong":
-      return +2;
-    case "medium":
-      return +1;
-    case "weak":
-      return -2;
-    case "trap":
-      return -6;
-    default:
-      return 0;
+function uniqueJustifications(items: JustificationItem[]): JustificationItem[] {
+  const seen = new Set<string>();
+  const out: JustificationItem[] = [];
+  for (const it of items) {
+    const key = `${it.type}:${it.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
   }
+  return out;
+}
+
+function resetReportDraft(state: Pick<GameState, "selectedHypothesisId" | "finalSupportJustifications">) {
+  return {
+    selectedHypothesisId: null,
+    finalSupportJustifications: [],
+  } as const;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -148,7 +130,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   eliminateHypothesis: (hypothesisId, justifications) =>
     set((state) => {
-      // Replace existing elimination for the same hypothesis
+      // Replace existing elimination if any
       const filteredElims = state.eliminations.filter((e) => e.hypothesisId !== hypothesisId);
 
       const elimination: EliminationJustification = {
@@ -157,44 +139,44 @@ export const useGameStore = create<GameState>((set, get) => ({
         timestamp: Date.now(),
       };
 
-      // Light trust feedback (internal only)
-      const refs = unique(justifications.map(toReasonRef));
-      const ev = evaluateElimination(hypothesisId, refs);
-
-      const trustDelta = trustDeltaFromEvaluation(ev);
-      const newTrust = Math.max(0, Math.min(100, state.trust + trustDelta));
-
-      // IMPORTANT: any change in eliminations invalidates the final report draft.
+      // أي تعديل في الاستبعادات لازم يصفّر مسودة التقرير النهائي
       return {
         eliminations: [...filteredElims, elimination],
-        trust: newTrust,
-        selectedHypothesisId: null,
-        finalSupportJustifications: [],
+        ...resetReportDraft(state),
       };
     }),
 
   restoreHypothesis: (hypothesisId) =>
     set((state) => ({
       eliminations: state.eliminations.filter((e) => e.hypothesisId !== hypothesisId),
-      selectedHypothesisId: null,
+      ...resetReportDraft(state),
+    })),
+
+  selectFinalHypothesis: (hypothesisId) =>
+    set((state) => ({
+      selectedHypothesisId: hypothesisId,
+      // تأكيد الفرضية يعيد اختيار الدعم (علشان مايبقاش في دعم قديم)
       finalSupportJustifications: [],
     })),
 
-  selectFinalHypothesis: (hypothesisId) => set({ selectedHypothesisId: hypothesisId }),
-
-  setFinalSupportJustifications: (items) => set({ finalSupportJustifications: items }),
+  setFinalSupportJustifications: (items) =>
+    set(() => ({
+      finalSupportJustifications: uniqueJustifications(items),
+    })),
 
   submitConclusion: () => {
     const state = get();
 
     if (state.reportAttemptsLeft <= 0) {
       return {
+        outcome: "rejected",
         accepted: false,
-        correctHypothesis: false,
-        verdict: "unconvincing",
-        managerMessage: "المحاولات خلصت. لازم تعيد البدء.",
         scorePercent: 0,
-        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
+        correctHypothesis: false,
+        remainingHypothesisId: "",
+        ledger: [],
+        issues: [],
+        managerMessage: "المحاولات خلصت. لازم تعيد البدء.",
       };
     }
 
@@ -204,79 +186,63 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     if (remaining.length !== 1) {
       return {
+        outcome: "review",
         accepted: false,
-        correctHypothesis: false,
-        verdict: "unconvincing",
-        managerMessage: "لسه التقرير غير جاهز. لازم تفضل فرضية واحدة فقط قبل ما تقدّم التقرير.",
         scorePercent: 0,
-        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
+        correctHypothesis: false,
+        remainingHypothesisId: remaining[0]?.id ?? "",
+        ledger: [],
+        issues: [],
+        managerMessage: "لازم تسيب فرضية واحدة بس قبل ما تقدّم التقرير.",
       };
     }
 
     const finalHypothesisId = remaining[0].id;
 
-    // Safety: if user confirmed something else (shouldn't happen after reset), force reconfirm.
-    if (!state.selectedHypothesisId || state.selectedHypothesisId !== finalHypothesisId) {
+    // لازم المستخدم يكون أكد الفرضية المتبقية (خطوة UX)
+    if (state.selectedHypothesisId !== finalHypothesisId) {
       return {
+        outcome: "review",
         accepted: false,
-        correctHypothesis: false,
-        verdict: "unconvincing",
-        managerMessage: "قبل ما تقدّم التقرير، لازم تأكد الفرضية المتبقية كسبب رئيسي.",
         scorePercent: 0,
-        breakdown: { eliminations: [], finalSupport: { grade: "weak", points: 0, message: "" } },
+        correctHypothesis: false,
+        remainingHypothesisId: finalHypothesisId,
+        ledger: [],
+        issues: [],
+        managerMessage: "قبل ما تقدّم التقرير، أكد الفرضية المتبقية كسبب رئيسي.",
       };
     }
 
-    const eliminatedHypothesisIds = state.currentCase.hypotheses
-      .filter((h) => h.id !== finalHypothesisId)
-      .map((h) => h.id);
-
-    const eliminationReasonsByHypothesis: Record<string, ReasonRef[]> = {};
-    for (const hid of eliminatedHypothesisIds) {
-      const elim = state.eliminations.find((e) => e.hypothesisId === hid);
-      eliminationReasonsByHypothesis[hid] = unique((elim?.justifications ?? []).map(toReasonRef));
-    }
-
-    const finalSupportReasonRefs = unique(state.finalSupportJustifications.map(toReasonRef));
-
-    const evaluation = evaluateReport({
+    const evalResult = evaluateCase001Report({
+      eliminations: state.eliminations.map((e) => ({
+        hypothesisId: e.hypothesisId,
+        justifications: e.justifications as JustificationItem[],
+      })),
       finalHypothesisId,
-      eliminatedHypothesisIds,
-      eliminationReasonsByHypothesis,
-      finalSupportReasonRefs,
-      correctHypothesisId: state.currentCase.solution.correctHypothesisId,
+      finalSupportJustifications: state.finalSupportJustifications,
     });
 
-    const nextAttemptsLeft = evaluation.accepted
+    const nextAttemptsLeft = evalResult.accepted
       ? state.reportAttemptsLeft
       : Math.max(0, state.reportAttemptsLeft - 1);
 
-    const nextStatus: GameState["gameStatus"] = evaluation.accepted
+    const nextStatus: GameState["gameStatus"] = evalResult.accepted
       ? "solved"
       : nextAttemptsLeft <= 0
         ? "failed"
         : "playing";
 
-    set({ reportAttemptsLeft: nextAttemptsLeft, gameStatus: nextStatus });
+    set({
+      reportAttemptsLeft: nextAttemptsLeft,
+      gameStatus: nextStatus,
+    });
 
-    return {
-      accepted: evaluation.accepted,
-      correctHypothesis: evaluation.correctHypothesis,
-      verdict: evaluation.verdict,
-      managerMessage: evaluation.managerNarrative,
-      scorePercent: evaluation.percent,
-      breakdown: {
-        eliminations: evaluation.eliminationFeedback,
-        finalSupport: evaluation.finalSupport,
-      },
-    };
+    return evalResult;
   },
 
   getRemainingHypotheses: () => {
     const state = get();
-    return state.currentCase.hypotheses.filter(
-      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id)
-    );
+    return state.currentCase.hypotheses.filter((h) => !state.eliminations.some((e) => e.hypothesisId === h.id));
   },
 
   isHypothesisEliminated: (hypothesisId) => get().eliminations.some((e) => e.hypothesisId === hypothesisId),
