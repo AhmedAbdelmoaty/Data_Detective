@@ -1,37 +1,59 @@
-import { case001Rules, ReasonRef } from "@/content/cases/case001Rules";
 import { case001 } from "@/content/cases/case001";
+import { case001Rules, ReasonRef } from "@/content/cases/case001Rules";
 
-export type Tag = "LOCK" | "SUPPORT" | "TRAP" | "WEAK";
-export type Grade = "strong" | "medium" | "weak" | "trap";
-export type Verdict = "convincing" | "shaky" | "unconvincing";
+export type JustificationItem = { type: "evidence" | "interview" | "data"; id: string };
 
-export type StepEvaluation = {
-  grade: Grade;
-  points: number; // used to compute quality meter
-  message: string; // simple, non-technical feedback
-};
+export type StepStatus = "ok" | "ok_noisy" | "invalid" | "trap";
 
-export type EliminationFeedback = {
+export type StepResult = {
+  stepKey: string; // e.g. "elim:h1" | "support:h2"
   hypothesisId: string;
-  evaluation: StepEvaluation;
+  kind: "elimination" | "support";
+  status: StepStatus;
+  points: number;
+  note: string; // short player-facing note (simple Arabic)
 };
+
+export type IssueType = "noise" | "invalid" | "trap";
+
+export type IssueGroup = {
+  type: IssueType;
+  title: string;
+  items: string[]; // short bullets
+};
+
+export type ReportOutcome = "accepted" | "review" | "rejected";
 
 export type ReportEvaluation = {
-  percent: number;
-  verdict: Verdict;
-  accepted: boolean;
+  outcome: ReportOutcome;
+  accepted: boolean; // outcome === "accepted"
+  scorePercent: number;
   correctHypothesis: boolean;
-  managerNarrative: string;
-  eliminationFeedback: EliminationFeedback[];
-  finalSupport: StepEvaluation;
+  remainingHypothesisId: string;
+  ledger: StepResult[]; // 4 items
+  issues: IssueGroup[]; // grouped, can contain all mistakes
+  managerMessage: string;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+const POINTS = {
+  ok: 25,
+  ok_noisy: 18,
+  invalid: 0,
+  trap: -10,
+  bonusCorrect: 10,
+} as const;
+
+const NOISE_REVIEW_THRESHOLD = 3; // if noisy steps >= 3 => review (even if correct)
+
+function unique<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
 }
 
-function hashSeed(s: string): number {
-  // deterministic hash (no crypto dependency)
+function toReasonRef(item: JustificationItem): ReasonRef {
+  return `${item.type}:${item.id}` as ReasonRef;
+}
+
+function hashStr(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -41,325 +63,386 @@ function hashSeed(s: string): number {
 }
 
 function pickBySeed<T>(seed: string, options: T[]): T {
-  const h = hashSeed(seed);
-  return options[h % options.length];
+  const idx = hashStr(seed) % options.length;
+  return options[idx];
 }
 
-export function tagReason(hypothesisId: string, reasonRef: ReasonRef): Tag {
-  const rule = (case001Rules as any)[hypothesisId] as
-    | { locks: ReasonRef[]; traps: ReasonRef[]; supports: ReasonRef[] }
-    | undefined;
+type RuleProfile = { anti: ReasonRef[]; pro: ReasonRef[]; decoy: ReasonRef[] };
 
-  // TRAP first: لو اللاعب لمس فخ… لازم يظهر كفخ حتى لو فيه سبب تاني قوي.
-  if (rule?.traps?.includes(reasonRef)) return "TRAP";
-  if (rule?.locks?.includes(reasonRef)) return "LOCK";
-  if (rule?.supports?.includes(reasonRef)) return "SUPPORT";
-  return "WEAK";
+function getRule(hypothesisId: string): RuleProfile {
+  return (case001Rules as any)[hypothesisId] as RuleProfile;
 }
 
-function gradeToPoints(grade: Grade): number {
-  if (grade === "strong") return 2;
-  if (grade === "medium") return 1;
-  if (grade === "weak") return 0;
-  return -1; // trap
+function splitRefsFor(hypothesisId: string, refs: ReasonRef[]) {
+  const rule = getRule(hypothesisId);
+  const inAnti = refs.filter((r) => rule.anti.includes(r));
+  const inPro = refs.filter((r) => rule.pro.includes(r));
+  const inDecoy = refs.filter((r) => rule.decoy.includes(r));
+  const rest = refs.filter((r) => !rule.anti.includes(r) && !rule.pro.includes(r) && !rule.decoy.includes(r));
+  return { rule, inAnti, inPro, inDecoy, rest };
 }
 
-function downgradeOne(grade: Exclude<Grade, "trap">): Exclude<Grade, "trap"> {
-  if (grade === "strong") return "medium";
-  if (grade === "medium") return "weak";
-  return "weak";
-}
+function evalElimination(hypothesisId: string, justifications: JustificationItem[]): StepResult {
+  const refs = unique(justifications.map(toReasonRef));
+  const { inAnti, inPro, inDecoy, rest } = splitRefsFor(hypothesisId, refs);
 
-function eliminationMessage(grade: Grade, mixedTrap: boolean): string {
-  if (mixedTrap) {
-    // This is the “picked a good reason + added noise/trap” pattern.
-    return "فيه سبب كويس… لكن خلطته مع معلومة ممكن تكون مضللة. ده بيقلل الثقة في الاستبعاد.";
+  const title = case001.hypotheses.find((h) => h.id === hypothesisId)?.title ?? "الفرضية";
+
+  if (refs.length === 0) {
+    return {
+      stepKey: `elim:${hypothesisId}`,
+      hypothesisId,
+      kind: "elimination",
+      status: "invalid",
+      points: POINTS.invalid,
+      note: "استبعاد بدون أسباب.",
+    };
   }
-  switch (grade) {
-    case "strong":
-      return "استبعادك كان واضح ومقنع… السبب اللي اخترته كفاية يقفل الفرضية.";
-    case "medium":
-      return "السبب مرتبط، بس مش قوي كفاية لوحده عشان يقفل الفرضية بثقة.";
-    case "weak":
-      return "السبب اللي اخترته بعيد أو عام… ومش بيساعد نقفل الفرضية.";
-    case "trap":
-      return "اعتمدت على معلومة شكلها مقنع… لكنها ممكن تودّي لاستنتاج غلط.";
+
+  // لو اخترت أي سبب "مش للنفي" (pro/decoy) يبقى قرارك مش سليم حتى لو اخترت سبب واحد صحيح.
+  if (inPro.length > 0 || inDecoy.length > 0) {
+    return {
+      stepKey: `elim:${hypothesisId}`,
+      hypothesisId,
+      kind: "elimination",
+      status: "invalid",
+      points: POINTS.invalid,
+      note: `الأسباب اللي اخترتها ما كانتش مناسبة لنفي ${title}.`,
+    };
   }
-}
 
-function supportMessage(grade: Grade, mixedTrap: boolean): string {
-  if (mixedTrap) {
-    return "دعمك فيه نقطة كويسة… لكن خلطتها مع سبب مضلل، فالدعم كله بقى أضعف.";
+  if (inAnti.length === 0) {
+    return {
+      stepKey: `elim:${hypothesisId}`,
+      hypothesisId,
+      kind: "elimination",
+      status: "invalid",
+      points: POINTS.invalid,
+      note: `استبعاد ${title} مش مبني على سبب ينفيها.`,
+    };
   }
-  switch (grade) {
-    case "strong":
-      return "دعمك للنتيجة النهائية متماسك ومبني على سبب مناسب.";
-    case "medium":
-      return "فيه دعم، بس محتاج يكون أقوى/أوضح عشان يطمّن.";
-    case "weak":
-      return "الدعم اللي اخترته مش كفاية لتقوية النتيجة النهائية.";
-    case "trap":
-      return "سبب الدعم اللي اخترته ممكن يكون مضلل في الاتجاه ده.";
+
+  if (rest.length > 0) {
+    return {
+      stepKey: `elim:${hypothesisId}`,
+      hypothesisId,
+      kind: "elimination",
+      status: "ok_noisy",
+      points: POINTS.ok_noisy,
+      note: `الاستبعاد صحيح… بس فيه سبب إضافي ما أضافش قيمة.`,
+    };
   }
-}
-
-export function evaluateElimination(hypothesisId: string, reasonRefs: ReasonRef[]): StepEvaluation {
-  const tags = reasonRefs.map((r) => tagReason(hypothesisId, r));
-
-  const hasLock = tags.includes("LOCK");
-  const hasTrap = tags.includes("TRAP");
-  const hasWeak = tags.includes("WEAK");
-
-  // Base grade is the “best reason”.
-  let base: Grade;
-  if (hasLock) base = "strong";
-  else if (hasWeak) base = "medium";
-  else if (hasTrap) base = "trap";
-  else base = "weak";
-
-  // If player mixed a good reason with a trap, downgrade one level (not a full trap).
-  const mixedTrap = base !== "trap" && hasTrap;
-  const grade: Grade = mixedTrap ? downgradeOne(base as Exclude<Grade, "trap">) : base;
 
   return {
-    grade,
-    points: gradeToPoints(grade),
-    message: eliminationMessage(grade, mixedTrap),
+    stepKey: `elim:${hypothesisId}`,
+    hypothesisId,
+    kind: "elimination",
+    status: "ok",
+    points: POINTS.ok,
+    note: "الاستبعاد صحيح ومقنع.",
   };
 }
 
-export function evaluateSupport(finalHypothesisId: string, reasonRefs: ReasonRef[]): StepEvaluation {
-  const tags = reasonRefs.map((r) => tagReason(finalHypothesisId, r));
+function evalSupport(finalHypothesisId: string, justifications: JustificationItem[]): StepResult {
+  const refs = unique(justifications.map(toReasonRef));
+  const { inAnti, inPro, inDecoy, rest } = splitRefsFor(finalHypothesisId, refs);
 
-  const hasSupport = tags.includes("SUPPORT");
-  const hasTrap = tags.includes("TRAP");
-  const hasWeak = tags.includes("WEAK");
+  const title = case001.hypotheses.find((h) => h.id === finalHypothesisId)?.title ?? "الفرضية";
+  const correct = finalHypothesisId === case001.solution.correctHypothesisId;
 
-  let base: Grade;
-  if (hasSupport) base = "strong";
-  else if (hasWeak) base = "medium";
-  else if (hasTrap) base = "trap";
-  else base = "weak";
+  if (refs.length === 0) {
+    return {
+      stepKey: `support:${finalHypothesisId}`,
+      hypothesisId: finalHypothesisId,
+      kind: "support",
+      status: "invalid",
+      points: POINTS.invalid,
+      note: "الدعم فاضي… لازم تختار سبب واحد على الأقل.",
+    };
+  }
 
-  const mixedTrap = base !== "trap" && hasTrap;
-  const grade: Grade = mixedTrap ? downgradeOne(base as Exclude<Grade, "trap">) : base;
+  // دعم الفرضية الصحيحة
+  if (correct) {
+    // أي anti/decoy هنا يعتبر استخدام مش في مكانه
+    if (inAnti.length > 0 || inDecoy.length > 0) {
+      return {
+        stepKey: `support:${finalHypothesisId}`,
+        hypothesisId: finalHypothesisId,
+        kind: "support",
+        status: "invalid",
+        points: POINTS.invalid,
+        note: `الدعم اللي اخترته مش بيقوّي ${title} بشكل واضح.`,
+      };
+    }
 
+    if (inPro.length === 0) {
+      return {
+        stepKey: `support:${finalHypothesisId}`,
+        hypothesisId: finalHypothesisId,
+        kind: "support",
+        status: "invalid",
+        points: POINTS.invalid,
+        note: `الدعم اللي اخترته مش مقنع لتثبيت ${title}.`,
+      };
+    }
+
+    if (rest.length > 0) {
+      return {
+        stepKey: `support:${finalHypothesisId}`,
+        hypothesisId: finalHypothesisId,
+        kind: "support",
+        status: "ok_noisy",
+        points: POINTS.ok_noisy,
+        note: "الدعم كويس… بس فيه سبب إضافي غير مفيد.",
+      };
+    }
+
+    return {
+      stepKey: `support:${finalHypothesisId}`,
+      hypothesisId: finalHypothesisId,
+      kind: "support",
+      status: "ok",
+      points: POINTS.ok,
+      note: "الدعم مقنع وراكب على اللي اتجمع.",
+    };
+  }
+
+  // دعم فرضية خاطئة
+  if (inDecoy.length > 0) {
+    return {
+      stepKey: `support:${finalHypothesisId}`,
+      hypothesisId: finalHypothesisId,
+      kind: "support",
+      status: "trap",
+      points: POINTS.trap,
+      note: "معلومة شكلها مقنع… بس ما تكفيش تبني عليها قرار.",
+    };
+  }
+
+  // أي دعم آخر لفرضية خاطئة = غير صحيح
   return {
-    grade,
-    points: gradeToPoints(grade),
-    message: supportMessage(grade, mixedTrap),
+    stepKey: `support:${finalHypothesisId}`,
+    hypothesisId: finalHypothesisId,
+    kind: "support",
+    status: "invalid",
+    points: POINTS.invalid,
+    note: `الدعم اللي اخترته ما يثبتش ${title}.`,
   };
 }
 
-function percentFromPoints(totalPoints: number, correctBonus: number): number {
-  // Score range (Level 1):
-  // - 3 eliminations: each -1..+2 => -3..+6
-  // - final support: -1..+2
-  // - correct bonus: 0..+2
-  const raw = totalPoints + correctBonus;
-  const min = -4; // -3 + -1 + 0
-  const max = 10; // +6 + +2 + +2
-  const clamped = clamp(raw, min, max);
-  const normalized = (clamped - min) / (max - min);
-  return Math.round(normalized * 100);
+function buildIssues(ledger: StepResult[]): IssueGroup[] {
+  const noise: string[] = [];
+  const invalid: string[] = [];
+  const trap: string[] = [];
+
+  const labelFor = (s: StepResult) => {
+    const title = case001.hypotheses.find((h) => h.id === s.hypothesisId)?.title ?? "الفرضية";
+    return s.kind === "support" ? `دعم ${title}` : `استبعاد ${title}`;
+  };
+
+  for (const s of ledger) {
+    const label = labelFor(s);
+    if (s.status === "ok_noisy") noise.push(`${label}: سبب إضافي غير مفيد.`);
+    if (s.status === "invalid") invalid.push(`${label}: السبب مش مناسب.`);
+    if (s.status === "trap") trap.push(`${label}: اتخدعت بمعلومة مغرية.`);
+  }
+
+  const groups: IssueGroup[] = [];
+
+  if (invalid.length) {
+    groups.push({
+      type: "invalid",
+      title: "حاجات محتاجة تعديل",
+      items: invalid,
+    });
+  }
+
+  if (noise.length) {
+    groups.push({
+      type: "noise",
+      title: "أسباب زيادة",
+      items: noise,
+    });
+  }
+
+  if (trap.length) {
+    groups.push({
+      type: "trap",
+      title: "وقعت في فخ",
+      items: trap,
+    });
+  }
+
+  return groups;
 }
 
-function verdictFromPercent(percent: number): Verdict {
-  if (percent >= 75) return "convincing";
-  if (percent >= 45) return "shaky";
-  return "unconvincing";
-}
-
-function verdictArabic(verdict: Verdict): string {
-  if (verdict === "convincing") return "مقنع";
-  if (verdict === "shaky") return "مهزوز";
-  return "غير مقنع";
-}
-
-function buildManagerNarrative(params: {
-  percent: number;
-  verdict: Verdict;
-  accepted: boolean;
+function managerNarrative(params: {
+  outcome: ReportOutcome;
   correctHypothesis: boolean;
-  finalHypothesisId: string;
-  eliminationFeedback: EliminationFeedback[];
-  finalSupport: StepEvaluation;
+  ledger: StepResult[];
 }): string {
-  const { verdict, accepted, correctHypothesis, finalHypothesisId, eliminationFeedback, finalSupport } = params;
+  const { outcome, correctHypothesis, ledger } = params;
+
+  const titles = {
+    h1: case001.hypotheses.find((h) => h.id === "h1")?.title ?? "فرضية المبيعات",
+    h2: case001.hypotheses.find((h) => h.id === "h2")?.title ?? "فرضية الجودة",
+    h3: case001.hypotheses.find((h) => h.id === "h3")?.title ?? "فرضية السوق",
+    h4: case001.hypotheses.find((h) => h.id === "h4")?.title ?? "فرضية المنافس",
+  } as const;
 
   const seed = JSON.stringify(params);
-  const opener = pickBySeed(seed + ":opener", [
+
+  // pick 1-2 highlights
+  const invalidSteps = ledger.filter((s) => s.status === "invalid");
+  const noisySteps = ledger.filter((s) => s.status === "ok_noisy");
+  const trapSteps = ledger.filter((s) => s.status === "trap");
+
+  const mentionHyp = (s: StepResult) => {
+    const title = case001.hypotheses.find((h) => h.id === s.hypothesisId)?.title ?? "فرضية";
+    return title;
+  };
+
+  const openers = [
     "تمام… قرأت تقريرك كويس.",
-    "راجعت تقريرك بالكامل.",
-    "اطلّعت على اللي كتبتّه في التقرير.",
+    "خلّيني أقولك انطباعي بعد ما راجعت التقرير.",
+    "اطلّعت على اللي وصلت له.",
+  ];
+
+  if (outcome === "accepted") {
+    const positives = [
+      `ريحني إنك قفلت الشكوك الأساسية واحدة واحدة، خصوصًا ${titles.h1}.`,
+      `واضح إنك ما اتسحبتش وراء كلام شكله كبير… وده بان في استبعادك لـ ${titles.h3} و ${titles.h4}.`,
+      "المنطق العام في التقرير راكب على الصورة اللي عندنا.",
+    ];
+
+    const smallNote = noisySteps.length
+      ? pickBySeed(seed + "small", [
+          "في حاجات اتقالت زيادة ملهاش لازمة… بس مش مأثرة على القرار.",
+          "بس خلي بالك: كل ما التبرير يبقى أنضف، القرار يبقى أسهل.",
+        ])
+      : "";
+
+    const ending = pickBySeed(seed + "end", [
+      "أنا موافق نمشي على التقرير ده. خلّينا نبدأ إجراءات التنفيذ.",
+      "تمام. هنمشي بالاتجاه ده ونبدأ الخطوات اللي قلت عليها.",
+    ]);
+
+    return [pickBySeed(seed + "op", openers), pickBySeed(seed + "pos", positives), smallNote, ending]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (outcome === "review") {
+    // choose a specific hypothesis to mention if exists
+    const target = invalidSteps[0] ?? noisySteps[0];
+    const targetTitle = target ? mentionHyp(target) : "واحدة من الفرضيات";
+
+    const lines = [
+      "أنا مش ضد الاتجاه… بس مش قادر أوقع على القرار بالشكل ده.",
+      `في جزء متعلق بـ ${targetTitle} لسه مش مطمّنني كفاية.`,
+      "عايز نسخة أنضف من التقرير—اختصر الأسباب وخليها في صميم الموضوع.",
+    ];
+
+    const tone = pickBySeed(seed + "tone", [
+      "ارجع راجع بسرعة وتعالى.",
+      "لما تخلص، ابعتهولي تاني.",
+      "قدّم نسخة تانية ونشوف." ,
+    ]);
+
+    return [pickBySeed(seed + "op", openers), ...lines, tone].join("\n");
+  }
+
+  // rejected
+  const target = trapSteps[0] ?? invalidSteps[0];
+  const targetTitle = target ? mentionHyp(target) : "الفرضية الأساسية";
+
+  const lines = [
+    "أنا مش هقدر أعتمد على التقرير ده.",
+    correctHypothesis
+      ? `حتى لو الاتجاه ممكن يكون قريب… طريقة قفل ${targetTitle} مش مطمّنة.`
+      : "الفرضية اللي بنيت عليها القرار مش راكبة على الصورة اللي عندنا.",
+    "ارجع راجع اللي عندك وقدّم تقرير جديد." ,
+  ];
+
+  const extra = pickBySeed(seed + "ex", [
+    "خلّينا ناخدها بهدوء… بس لازم يبقى عندي سبب واضح قبل ما أتحرك.",
+    "مش عايزين نتحرك على حدس… عايزين تقرير يخلّينا مطمّنين.",
+    "دلوقتي مش مطمّن… وده قرار كبير.",
   ]);
 
-  const finalTitle = case001.hypotheses.find((h) => h.id === finalHypothesisId)?.title ?? "الفرضية الأساسية";
-
-  const toneLine = (() => {
-    if (verdict === "convincing")
-      return pickBySeed(seed + ":tone:good", [
-        "بشكل عام… طريقة تفكيرك مرتبة ومطمّنة.",
-        "التقرير مترابط ومفهوم، وده مطمّن.",
-        "فيه وضوح في المنهج اللي ماشي بيه.",
-      ]);
-    if (verdict === "shaky")
-      return pickBySeed(seed + ":tone:mid", [
-        "فيه شغل كويس… بس لسه في فجوات.",
-        "التقرير ماشي في اتجاه مفهوم، لكن مش مطمّن بالكامل.",
-        "أنا متردد شوية… محتاج تثبيت نقط قبل قرار كبير.",
-      ]);
-    return pickBySeed(seed + ":tone:bad", [
-      "بصراحة… التقرير بالشكل ده مش مطمّن.",
-      "فيه مشاكل في طريقة بناء الحُجج… ومش هينفع نمشي كده.",
-      "أنا مش قادر أعتمد عليه دلوقتي.",
-    ]);
-  })();
-
-  // Identify one strength and one weakness (without revealing the correct answer)
-  const strongestElim = eliminationFeedback.find((x) => x.evaluation.grade === "strong");
-  const trapElim = eliminationFeedback.find(
-    (x) => x.evaluation.grade === "trap" || x.evaluation.message.includes("مضل")
-  );
-  const weakElim = eliminationFeedback.find((x) => x.evaluation.grade === "weak");
-  const mediumElim = eliminationFeedback.find((x) => x.evaluation.grade === "medium");
-
-  const strengthLine = (() => {
-    if (strongestElim) {
-      const title = case001.hypotheses.find((h) => h.id === strongestElim.hypothesisId)?.title ?? "واحدة من الفرضيات";
-      return pickBySeed(seed + ":strength:elim", [
-        `أكتر حاجة مطمّنة عندي: طريقة استبعادك لـ${title} كانت قوية وواضحة.`,
-        `نقطة قوة واضحة: انت قفلت ${title} بشكل كويس.`,
-      ]);
-    }
-    if (finalSupport.grade === "strong") {
-      return pickBySeed(seed + ":strength:support", [
-        "دعمك للفكرة الأساسية كان واضح ومتماسك.",
-        "الجزء الأقوى عندك كان دعم النتيجة النهائية.",
-      ]);
-    }
-    return pickBySeed(seed + ":strength:default", [
-      "فيه محاولات كويسة عندك لترتيب الصورة العامة.",
-      "واضح إنك بتحاول تمسك الخيط وتبني قرار.",
-    ]);
-  })();
-
-  const weaknessLine = (() => {
-    if (trapElim) {
-      return pickBySeed(seed + ":weakness:trap", [
-        "بس فيه نقطة خلتني أقلق: في جزء اعتمدت على معلومة ممكن تكون مضللة.",
-        "اللي مش مطمّن: في مكان حصل انجذاب لمعلومة شكلها قوي… لكنها مش مضمونة.",
-      ]);
-    }
-    if (finalSupport.grade === "trap" || finalSupport.message.includes("مضل")) {
-      return pickBySeed(seed + ":weakness:supporttrap", [
-        "كمان دعمك للفكرة الأساسية فيه معلومة ممكن تودّي لاتجاه غلط.",
-        "الجزء اللي محتاج إعادة نظر: دعم النتيجة النهائية مش في مكانه.",
-      ]);
-    }
-    if (weakElim || mediumElim || finalSupport.grade === "weak" || finalSupport.grade === "medium") {
-      return pickBySeed(seed + ":weakness:weak", [
-        "فيه جزء محتاج سند أقوى… بعض الاستبعادات/الدعم لسه عامة.",
-        "المشكلة الأساسية: في نقاط اتقفلت بدرجة أقل من المطلوب.",
-      ]);
-    }
-    return pickBySeed(seed + ":weakness:default", [
-      "محتاج تشد الحُجج شوية قبل ما نعتمد على التقرير.",
-      "فيه تفاصيل لو اتظبطت، التقرير هيبقى أقوى بكتير.",
-    ]);
-  })();
-
-  const finalLine = (() => {
-    const verdictAr = verdictArabic(verdict);
-    if (!correctHypothesis) {
-      return pickBySeed(seed + ":final:incorrect", [
-        `بالنسبة للفكرة الأساسية (${finalTitle})… أنا مش شايفها راكبة على الصورة كاملة بالشكل الحالي.`,
-        `الفرضية الأساسية اللي وصلت لها (${finalTitle}) محتاجة مراجعة… الصورة مش متماسكة معها.`,
-      ]);
-    }
-    if (verdict === "convincing") {
-      return pickBySeed(seed + ":final:good", [
-        `بالنسبة للفكرة الأساسية (${finalTitle})… الطرح راكب على اللي جمعته من معلومات.`,
-        `الخلاصة: ${finalTitle} متسقة مع الصورة اللي في التقرير.`,
-      ]);
-    }
-    return pickBySeed(seed + ":final:mid", [
-      `الفكرة الأساسية (${finalTitle}) ممكن… لكن محتاجة سند أقوى قبل ما نتحرك.`,
-      `أنا فاهم اتجاهك في (${finalTitle})، بس محتاج تثبيت أكتر.`,
-    ]) + ` (التقييم العام: ${verdictAr})`;
-  })();
-
-  const nextStep = (() => {
-    if (accepted) {
-      return pickBySeed(seed + ":next:accepted", [
-        "تمام… هنمشي على التوصية دي، ونبدأ إجراءات واضحة ونراقب النتائج بسرعة.",
-        "ممتاز. خلّينا نبدأ التنفيذ على ده، ومعاه متابعة أسبوعية عشان نتأكد إن الاتجاه صح.",
-      ]);
-    }
-    if (verdict === "shaky") {
-      return pickBySeed(seed + ":next:shaky", [
-        "قبل ما ناخد قرار… عايزك ترجع تثبّت النقاط اللي لسه مهزوزة وتقدم نسخة أقوى.",
-        "محتاج مراجعة سريعة: قوّي الحُجج في النقط اللي مش مقفولة… وبعدين ارجعلي.",
-      ]);
-    }
-    return pickBySeed(seed + ":next:bad", [
-      "مش هقدر أعتمد على التقرير بالشكل ده. ارجع راجع طريقة الاستبعاد والدعم وحاول تاني.",
-      "لازم نعيد بناء التقرير بشكل أهدى وأوضح… حاول تاني بعد ما تقوي السند.",
-    ]);
-  })();
-
-  return [opener, toneLine, strengthLine, weaknessLine, finalLine, nextStep].join("\n");
+  return [pickBySeed(seed + "op", openers), ...lines, extra].join("\n");
 }
 
-export function evaluateReport(params: {
+export function evaluateCase001Report(params: {
+  eliminations: Array<{ hypothesisId: string; justifications: JustificationItem[] }>;
   finalHypothesisId: string;
-  eliminatedHypothesisIds: string[];
-  eliminationReasonsByHypothesis: Record<string, ReasonRef[]>;
-  finalSupportReasonRefs: ReasonRef[];
-  correctHypothesisId: string;
+  finalSupportJustifications: JustificationItem[];
 }): ReportEvaluation {
-  const {
-    finalHypothesisId,
-    eliminatedHypothesisIds,
-    eliminationReasonsByHypothesis,
-    finalSupportReasonRefs,
-    correctHypothesisId,
-  } = params;
+  const { eliminations, finalHypothesisId, finalSupportJustifications } = params;
 
-  const eliminationFeedback: EliminationFeedback[] = eliminatedHypothesisIds.map((hid) => {
-    const refs = eliminationReasonsByHypothesis[hid] ?? [];
-    return { hypothesisId: hid, evaluation: evaluateElimination(hid, refs) };
-  });
+  const correctHypothesis = finalHypothesisId === case001.solution.correctHypothesisId;
 
-  const finalSupport = evaluateSupport(finalHypothesisId, finalSupportReasonRefs);
+  // Expected 4 hypotheses in case001
+  const elimIds = case001.hypotheses
+    .map((h) => h.id)
+    .filter((hid) => hid !== finalHypothesisId);
 
-  const pointsSum =
-    eliminationFeedback.reduce((acc, x) => acc + x.evaluation.points, 0) + finalSupport.points;
+  const ledger: StepResult[] = [];
 
-  const correctHypothesis = finalHypothesisId === correctHypothesisId;
-  const correctBonus = correctHypothesis ? 2 : 0;
-  const percent = percentFromPoints(pointsSum, correctBonus);
-  const verdict = verdictFromPercent(percent);
+  for (const hid of elimIds) {
+    const elim = eliminations.find((e) => e.hypothesisId === hid);
+    ledger.push(evalElimination(hid, elim?.justifications ?? []));
+  }
 
-  const accepted = Boolean(correctHypothesis && verdict === "convincing");
+  ledger.push(evalSupport(finalHypothesisId, finalSupportJustifications));
 
-  const managerNarrative = buildManagerNarrative({
-    percent,
-    verdict,
-    accepted,
-    correctHypothesis,
-    finalHypothesisId,
-    eliminationFeedback,
-    finalSupport,
-  });
+  const noisyCount = ledger.filter((s) => s.status === "ok_noisy").length;
+  const anyInvalidElims = ledger
+    .filter((s) => s.kind === "elimination")
+    .some((s) => s.status === "invalid");
+  const supportStep = ledger.find((s) => s.kind === "support")!;
+
+  // score (0..100)
+  // نستخدم سقف ثابت 110 (4 خطوات * 25 + بونص 10) علشان الفرق بين "نظيف" و"فيه ضوضاء" يبان.
+  let points = ledger.reduce((a, s) => a + s.points, 0);
+  if (correctHypothesis) points += POINTS.bonusCorrect;
+  const maxPoints = POINTS.ok * 4 + POINTS.bonusCorrect; // 110
+  const ratio = Math.max(0, Math.min(1, points / maxPoints));
+  const scorePercent = Math.round(ratio * 100);
+
+  // outcome rules
+  let outcome: ReportOutcome;
+  if (
+    correctHypothesis &&
+    !anyInvalidElims &&
+    (supportStep.status === "ok" || supportStep.status === "ok_noisy") &&
+    noisyCount < NOISE_REVIEW_THRESHOLD &&
+    supportStep.status !== "trap"
+  ) {
+    outcome = "accepted";
+  } else if (supportStep.status === "trap" || !correctHypothesis) {
+    outcome = "rejected";
+  } else {
+    outcome = "review";
+  }
+
+  // If correct but too noisy => review (explicit)
+  if (outcome === "accepted" && noisyCount >= NOISE_REVIEW_THRESHOLD) {
+    outcome = "review";
+  }
+
+  const issues = buildIssues(ledger);
+
+  const managerMessage = managerNarrative({ outcome, correctHypothesis, ledger });
 
   return {
-    percent,
-    verdict,
-    accepted,
+    outcome,
+    accepted: outcome === "accepted",
+    scorePercent,
     correctHypothesis,
-    managerNarrative,
-    eliminationFeedback,
-    finalSupport,
+    remainingHypothesisId: finalHypothesisId,
+    ledger,
+    issues,
+    managerMessage,
   };
 }
