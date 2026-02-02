@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Users, Database, CheckCircle2, AlertTriangle } from "lucide-react";
+import { FileText, Users, Database, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 
 type InfoItem = {
   key: string;
@@ -17,22 +17,30 @@ type InfoItem = {
   detail: string;
 };
 
-function levelBadge(level: string) {
-  switch (level) {
+function gradeBadge(grade: string) {
+  switch (grade) {
     case "strong":
       return { label: "قوي", variant: "default" as const, icon: CheckCircle2 };
-    case "good":
-      return { label: "مقبول", variant: "secondary" as const, icon: CheckCircle2 };
-    case "mixed":
-      return { label: "مختلط", variant: "secondary" as const, icon: AlertTriangle };
+    case "medium":
+      return { label: "متوسط", variant: "secondary" as const, icon: AlertTriangle };
     case "weak":
       return { label: "ضعيف", variant: "outline" as const, icon: AlertTriangle };
     case "trap":
-      return { label: "مضلل", variant: "destructive" as const, icon: AlertTriangle };
-    case "irrelevant":
-      return { label: "بعيد", variant: "destructive" as const, icon: AlertTriangle };
+      return { label: "فخ", variant: "destructive" as const, icon: XCircle };
     default:
       return { label: "غير واضح", variant: "outline" as const, icon: AlertTriangle };
+  }
+}
+
+function verdictMeta(verdict: ReportResult["verdict"]) {
+  switch (verdict) {
+    case "convincing":
+      return { label: "مقنع", variant: "default" as const };
+    case "shaky":
+      return { label: "مهزوز", variant: "secondary" as const };
+    case "unconvincing":
+    default:
+      return { label: "غير مقنع", variant: "destructive" as const };
   }
 }
 
@@ -44,6 +52,7 @@ export default function Report() {
     gameStatus,
     currentCase,
     getRemainingHypotheses,
+    eliminations,
     selectedHypothesisId,
     selectFinalHypothesis,
     finalSupportJustifications,
@@ -67,7 +76,39 @@ export default function Report() {
   const remainingHypotheses = getRemainingHypotheses();
   const isReadyToReport = remainingHypotheses.length === 1;
   const finalHypothesis = isReadyToReport ? remainingHypotheses[0] : null;
+  const isConfirmed = Boolean(finalHypothesis && selectedHypothesisId === finalHypothesis.id);
   const attemptsDepleted = reportAttemptsLeft <= 0;
+
+  // Draft key: if anything changes after a result, clear the result to avoid “cached report” bugs.
+  const draftKey = useMemo(() => {
+    const elimKey = eliminations
+      .map((e) => ({
+        h: e.hypothesisId,
+        t: e.timestamp,
+        r: (e.justifications || []).map((j) => `${j.type}:${j.id}`).sort(),
+      }))
+      .sort((a, b) => a.h.localeCompare(b.h));
+
+    const supportKey = finalSupportJustifications
+      .map((j) => `${j.type}:${j.id}`)
+      .sort();
+
+    return JSON.stringify({
+      remaining: remainingHypotheses.map((h) => h.id).sort(),
+      selected: selectedHypothesisId,
+      supportKey,
+      elimKey,
+    });
+  }, [eliminations, finalSupportJustifications, remainingHypotheses, selectedHypothesisId]);
+
+  const [resultDraftKey, setResultDraftKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (result && resultDraftKey && draftKey !== resultDraftKey) {
+      setResult(null);
+      setResultDraftKey(null);
+    }
+  }, [draftKey, result, resultDraftKey]);
 
   const discoveredEvidence = getDiscoveredEvidence();
   const completedInterviews = getCompletedInterviews();
@@ -127,12 +168,15 @@ export default function Report() {
     selectFinalHypothesis(finalHypothesis.id);
     // reset any previous run support choices
     setFinalSupportJustifications([]);
+    setResult(null);
+    setResultDraftKey(null);
   };
 
   const handleSubmit = () => {
     if (attemptsDepleted) return;
     const res = submitConclusion();
     setResult(res);
+    setResultDraftKey(draftKey);
   };
 
   const handleRestart = () => {
@@ -215,7 +259,7 @@ export default function Report() {
               <div className="text-sm text-muted-foreground mt-1">{finalHypothesis.description}</div>
             </div>
 
-            {!selectedHypothesisId ? (
+            {!isConfirmed ? (
               <Button onClick={handleConfirmHypothesis} className="w-full">
                 تأكيد هذه الفرضية كسبب رئيسي
               </Button>
@@ -291,9 +335,12 @@ export default function Report() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>رد المدير</span>
-              <Badge variant={result.accepted ? "default" : "destructive"}>
-                {result.accepted ? "مقبول" : "غير مقبول"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={verdictMeta(result.verdict).variant}>{verdictMeta(result.verdict).label}</Badge>
+                <Badge variant={result.accepted ? "default" : "secondary"}>
+                  {result.accepted ? "هنمشي بالتقرير" : "مش هنمشي دلوقتي"}
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
 
@@ -314,23 +361,23 @@ export default function Report() {
             </div>
 
             <div className="space-y-3">
-              <div className="font-bold">ملخص نقاط القوة/الضعف</div>
+              <div className="font-bold">ملخص واضح (بدون كشف الإجابة)</div>
 
               <div className="space-y-3">
-                {Object.entries(result.breakdown.eliminations).map(([hid, ev]) => {
-                  const h = currentCase.hypotheses.find((x) => x.id === hid);
-                  const meta = levelBadge(ev.level);
+                {result.breakdown.eliminations.map(({ hypothesisId, evaluation }) => {
+                  const h = currentCase.hypotheses.find((x) => x.id === hypothesisId);
+                  const meta = gradeBadge(evaluation.grade);
                   const Icon = meta.icon;
                   return (
-                    <div key={hid} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
+                    <div key={hypothesisId} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <Icon className="w-4 h-4" />
-                          <div className="font-bold text-sm">{h?.title || hid}</div>
+                          <div className="font-bold text-sm">{h?.title || hypothesisId}</div>
                         </div>
                         <Badge variant={meta.variant}>{meta.label}</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-2">{ev.note}</div>
+                      <div className="text-xs text-muted-foreground mt-2">{evaluation.message}</div>
                     </div>
                   );
                 })}
@@ -342,13 +389,12 @@ export default function Report() {
                       <div className="font-bold text-sm">دعم الفرضية النهائية</div>
                     </div>
                     {(() => {
-                      const ev = result.breakdown.finalSupport;
-                      const meta = ev ? levelBadge(ev.level) : levelBadge("irrelevant");
+                      const meta = gradeBadge(result.breakdown.finalSupport.grade);
                       return <Badge variant={meta.variant}>{meta.label}</Badge>;
                     })()}
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {result.breakdown.finalSupport?.note || "مافيش أسباب دعم كفاية في التقرير."}
+                    {result.breakdown.finalSupport.message}
                   </div>
                 </div>
               </div>
