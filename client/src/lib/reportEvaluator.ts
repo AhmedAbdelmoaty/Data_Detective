@@ -14,14 +14,6 @@ export type StepResult = {
   note: string; // short player-facing note (simple Arabic)
 };
 
-export type IssueType = "noise" | "invalid" | "trap";
-
-export type IssueGroup = {
-  type: IssueType;
-  title: string;
-  items: string[]; // short bullets
-};
-
 export type ReportOutcome = "accepted" | "review" | "rejected";
 
 export type ReportEvaluation = {
@@ -31,7 +23,7 @@ export type ReportEvaluation = {
   correctHypothesis: boolean;
   remainingHypothesisId: string;
   ledger: StepResult[]; // 4 items
-  issues: IssueGroup[]; // grouped, can contain all mistakes
+  learningCards: string[];
   managerMessage: string;
 };
 
@@ -82,11 +74,57 @@ function splitRefsFor(hypothesisId: string, refs: ReasonRef[]) {
   return { rule, inAnti, inPro, inDecoy, rest };
 }
 
+const ELIM_NOTES = {
+  invalid: [
+    "الاستبعاد مش متأسس على سبب ينفي الفرضية بشكل واضح.",
+    "التبرير هنا ما يدّيش سبب كافي لرفع الفرضية من الترابيزة.",
+  ],
+  ok_noisy: [
+    "الاستبعاد مقبول—فيه سبب قوي… لكن سبب تاني ما أضافش فرق.",
+    "قرار الاستبعاد ماشي… بس التبرير كان ممكن يبقى أنضف.",
+    "وصلت لقرار صحيح، بس زودت سبب ما ساعدش في الصورة.",
+  ],
+  ok: [
+    "استبعاد مرتب ومقنع.",
+    "قرار واضح… والسبب اللي اخترته قفل الفرضية كويس.",
+    "الفرضية اتشالت بشكل مريح.",
+  ],
+} as const;
+
+const SUPPORT_NOTES = {
+  invalid: [
+    "الدعم مش متأسس على سبب يثبت الفرضية بشكل واضح.",
+    "التبرير هنا ما يدّيش سبب كافي لتثبيت الفرضية على الترابيزة.",
+  ],
+  ok_noisy: [
+    "الدعم مقبول—فيه سبب قوي… لكن سبب تاني ما أضافش فرق.",
+    "قرار الدعم ماشي… بس التبرير كان ممكن يبقى أنضف.",
+    "وصلت لقرار صحيح، بس زودت سبب ما ساعدش في الصورة.",
+  ],
+  ok: [
+    "دعم مرتب ومقنع.",
+    "قرار واضح… والسبب اللي اخترته قفل الفرضية كويس.",
+    "الفرضية اتثبتت بشكل مريح.",
+  ],
+  trap: [
+    "المعلومة اللي اعتمدت عليها شكلها قوي… بس مضللة لوحدها.",
+    "ده نوع من المعلومات اللي بتشدّك بسرعة… لكنها ما تكفيش لقرار.",
+    "اعتمدت على نقطة لامعة، بس ما تسندش الفرضية بالشكل اللي يطمن.",
+  ],
+} as const;
+
+function noteForStep(status: StepStatus, kind: StepResult["kind"], seed: string) {
+  if (kind === "elimination") {
+    if (status === "trap") return pickBySeed(seed, SUPPORT_NOTES.trap);
+    return pickBySeed(seed, ELIM_NOTES[status]);
+  }
+  return pickBySeed(seed, SUPPORT_NOTES[status]);
+}
+
 function evalElimination(hypothesisId: string, justifications: JustificationItem[]): StepResult {
   const refs = unique(justifications.map(toReasonRef));
   const { inAnti, inPro, inDecoy, rest } = splitRefsFor(hypothesisId, refs);
-
-  const title = case001.hypotheses.find((h) => h.id === hypothesisId)?.title ?? "الفرضية";
+  const seed = `elim:${hypothesisId}:${refs.join("|")}`;
 
   if (refs.length === 0) {
     return {
@@ -95,7 +133,7 @@ function evalElimination(hypothesisId: string, justifications: JustificationItem
       kind: "elimination",
       status: "invalid",
       points: POINTS.invalid,
-      note: "استبعاد بدون أسباب.",
+      note: noteForStep("invalid", "elimination", seed),
     };
   }
 
@@ -107,7 +145,7 @@ function evalElimination(hypothesisId: string, justifications: JustificationItem
       kind: "elimination",
       status: "invalid",
       points: POINTS.invalid,
-      note: `الأسباب اللي اخترتها ما كانتش مناسبة لنفي ${title}.`,
+      note: noteForStep("invalid", "elimination", seed),
     };
   }
 
@@ -118,7 +156,7 @@ function evalElimination(hypothesisId: string, justifications: JustificationItem
       kind: "elimination",
       status: "invalid",
       points: POINTS.invalid,
-      note: `استبعاد ${title} مش مبني على سبب ينفيها.`,
+      note: noteForStep("invalid", "elimination", seed),
     };
   }
 
@@ -129,7 +167,7 @@ function evalElimination(hypothesisId: string, justifications: JustificationItem
       kind: "elimination",
       status: "ok_noisy",
       points: POINTS.ok_noisy,
-      note: `الاستبعاد صحيح… بس فيه سبب إضافي ما أضافش قيمة.`,
+      note: noteForStep("ok_noisy", "elimination", seed),
     };
   }
 
@@ -139,16 +177,15 @@ function evalElimination(hypothesisId: string, justifications: JustificationItem
     kind: "elimination",
     status: "ok",
     points: POINTS.ok,
-    note: "الاستبعاد صحيح ومقنع.",
+    note: noteForStep("ok", "elimination", seed),
   };
 }
 
 function evalSupport(finalHypothesisId: string, justifications: JustificationItem[]): StepResult {
   const refs = unique(justifications.map(toReasonRef));
   const { inAnti, inPro, inDecoy, rest } = splitRefsFor(finalHypothesisId, refs);
-
-  const title = case001.hypotheses.find((h) => h.id === finalHypothesisId)?.title ?? "الفرضية";
   const correct = finalHypothesisId === case001.solution.correctHypothesisId;
+  const seed = `support:${finalHypothesisId}:${refs.join("|")}`;
 
   if (refs.length === 0) {
     return {
@@ -157,7 +194,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
       kind: "support",
       status: "invalid",
       points: POINTS.invalid,
-      note: "الدعم فاضي… لازم تختار سبب واحد على الأقل.",
+      note: noteForStep("invalid", "support", seed),
     };
   }
 
@@ -171,7 +208,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
         kind: "support",
         status: "invalid",
         points: POINTS.invalid,
-        note: `الدعم اللي اخترته مش بيقوّي ${title} بشكل واضح.`,
+        note: noteForStep("invalid", "support", seed),
       };
     }
 
@@ -182,7 +219,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
         kind: "support",
         status: "invalid",
         points: POINTS.invalid,
-        note: `الدعم اللي اخترته مش مقنع لتثبيت ${title}.`,
+        note: noteForStep("invalid", "support", seed),
       };
     }
 
@@ -193,7 +230,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
         kind: "support",
         status: "ok_noisy",
         points: POINTS.ok_noisy,
-        note: "الدعم كويس… بس فيه سبب إضافي غير مفيد.",
+        note: noteForStep("ok_noisy", "support", seed),
       };
     }
 
@@ -203,7 +240,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
       kind: "support",
       status: "ok",
       points: POINTS.ok,
-      note: "الدعم مقنع وراكب على اللي اتجمع.",
+      note: noteForStep("ok", "support", seed),
     };
   }
 
@@ -215,7 +252,7 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
       kind: "support",
       status: "trap",
       points: POINTS.trap,
-      note: "معلومة شكلها مقنع… بس ما تكفيش تبني عليها قرار.",
+      note: noteForStep("trap", "support", seed),
     };
   }
 
@@ -226,54 +263,63 @@ function evalSupport(finalHypothesisId: string, justifications: JustificationIte
     kind: "support",
     status: "invalid",
     points: POINTS.invalid,
-    note: `الدعم اللي اخترته ما يثبتش ${title}.`,
+    note: noteForStep("invalid", "support", seed),
   };
 }
 
-function buildIssues(ledger: StepResult[]): IssueGroup[] {
-  const noise: string[] = [];
-  const invalid: string[] = [];
-  const trap: string[] = [];
+const LEARNING_CARDS = {
+  invalid: [
+    "مش أي معلومة تنفع كسبب. السبب الصحيح هو اللي يغيّر قرارك بوضوح.",
+    "التفسير يشرح… لكن الدليل هو اللي يرجّح احتمال ويضعّف احتمال تاني.",
+  ],
+  noise: [
+    "كل دليل زيادة ممكن يزوّد التشويش. الوضوح أحيانًا في القليل.",
+    "مش المهم كام دليل عندك… المهم هل الدليل ده فعلاً فارق.",
+    "دليل واحد حاسم أحسن من أدلة كتير ما بتغيّرش النتيجة.",
+  ],
+  trap: [
+    "التضليل أحيانًا يبدأ بمعلومة شكلها قوي… فتسحبك لقرار سريع.",
+    "التضليل يخليك تفتّش عن اللي يؤكد فكرة في دماغك… قبل ما تراجع البدائل.",
+  ],
+  strong: [
+    "قوة التحليل إنك تقفل البدائل واحدة واحدة… مش إنك تلاقي إجابة بسرعة.",
+    "الثقة تيجي لما بدائل كتير تقع بأسباب واضحة.",
+  ],
+} as const;
 
-  const labelFor = (s: StepResult) => {
-    const title = case001.hypotheses.find((h) => h.id === s.hypothesisId)?.title ?? "الفرضية";
-    return s.kind === "support" ? `دعم ${title}` : `استبعاد ${title}`;
-  };
+function pickTwo(seed: string, options: readonly string[]) {
+  if (options.length <= 2) return [...options];
+  const first = pickBySeed(seed + "first", options);
+  const remaining = options.filter((o) => o !== first);
+  const second = pickBySeed(seed + "second", remaining);
+  return [first, second];
+}
 
-  for (const s of ledger) {
-    const label = labelFor(s);
-    if (s.status === "ok_noisy") noise.push(`${label}: سبب إضافي غير مفيد.`);
-    if (s.status === "invalid") invalid.push(`${label}: السبب مش مناسب.`);
-    if (s.status === "trap") trap.push(`${label}: اتخدعت بمعلومة مغرية.`);
+function buildLearningCards(ledger: StepResult[]): string[] {
+  const hasTrap = ledger.some((s) => s.status === "trap");
+  const hasInvalid = ledger.some((s) => s.status === "invalid");
+  const hasNoise = ledger.some((s) => s.status === "ok_noisy");
+
+  if (!hasTrap && !hasInvalid && !hasNoise) {
+    return [...LEARNING_CARDS.strong];
   }
 
-  const groups: IssueGroup[] = [];
+  const seed = JSON.stringify(ledger);
+  const priority: Array<"trap" | "invalid" | "noise"> = ["trap", "invalid", "noise"];
+  const categories = priority.filter((cat) =>
+    cat === "trap" ? hasTrap : cat === "invalid" ? hasInvalid : hasNoise
+  );
 
-  if (invalid.length) {
-    groups.push({
-      type: "invalid",
-      title: "حاجات محتاجة تعديل",
-      items: invalid,
-    });
+  if (categories.length === 1) {
+    const cat = categories[0];
+    return pickTwo(seed + cat, LEARNING_CARDS[cat]);
   }
 
-  if (noise.length) {
-    groups.push({
-      type: "noise",
-      title: "أسباب زيادة",
-      items: noise,
-    });
+  if (categories.length === 2) {
+    return categories.map((cat) => pickBySeed(seed + cat, LEARNING_CARDS[cat]));
   }
 
-  if (trap.length) {
-    groups.push({
-      type: "trap",
-      title: "وقعت في فخ",
-      items: trap,
-    });
-  }
-
-  return groups;
+  return categories.map((cat) => pickBySeed(seed + cat, LEARNING_CARDS[cat]));
 }
 
 function managerNarrative(params: {
@@ -431,7 +477,7 @@ export function evaluateCase001Report(params: {
     outcome = "review";
   }
 
-  const issues = buildIssues(ledger);
+  const learningCards = buildLearningCards(ledger);
 
   const managerMessage = managerNarrative({ outcome, correctHypothesis, ledger });
 
@@ -442,7 +488,7 @@ export function evaluateCase001Report(params: {
     correctHypothesis,
     remainingHypothesisId: finalHypothesisId,
     ledger,
-    issues,
+    learningCards,
     managerMessage,
   };
 }
