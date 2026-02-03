@@ -26,14 +26,14 @@ function outcomeBadge(outcome: ReportResult["outcome"]) {
 function statusMeta(status: string) {
   switch (status) {
     case "ok":
-      return { label: "صح", variant: "default" as const, icon: CheckCircle2 };
+      return { label: "مقبول", variant: "default" as const, icon: CheckCircle2 };
     case "ok_noisy":
-      return { label: "صح بس فيه زيادة", variant: "secondary" as const, icon: AlertTriangle };
+      return { label: "مقبول مع ملاحظة", variant: "secondary" as const, icon: AlertTriangle };
     case "trap":
       return { label: "فخ", variant: "destructive" as const, icon: AlertTriangle };
     case "invalid":
     default:
-      return { label: "غير صحيح", variant: "destructive" as const, icon: XCircle };
+      return { label: "غير مقبول", variant: "destructive" as const, icon: XCircle };
   }
 }
 
@@ -164,9 +164,7 @@ export default function Report() {
     <div className="p-8 max-w-5xl mx-auto space-y-8 pb-24">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">التقرير النهائي</h1>
-        <p className="text-muted-foreground">
-          هدف التقرير إنك تثبت إنك قفلت الاحتمالات بهدوء… من غير حشو، ومن غير قفزات.
-        </p>
+        <p className="text-muted-foreground">اكتب قرارك النهائي بالشكل اللي ينفع نتحرك عليه.</p>
         <div className="text-sm text-muted-foreground">
           المحاولات المتبقية: <span className="font-bold text-foreground">{reportAttemptsLeft}</span>
         </div>
@@ -306,14 +304,11 @@ export default function Report() {
               <div className="flex items-center justify-between">
                 <div className="font-bold flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  جودة التقرير
+                  تقييم أدائك
                 </div>
                 <div className="text-sm text-muted-foreground">{result.scorePercent}%</div>
               </div>
               <Progress value={result.scorePercent} />
-              <p className="text-xs text-muted-foreground">
-                دي جودة تقريرك (مش "حل صح/غلط" بس). كل ضوضاء أو قرار غير صحيح بيأثر.
-              </p>
             </div>
 
             <div className="space-y-3">
@@ -323,7 +318,10 @@ export default function Report() {
                   const title = currentCase.hypotheses.find((h) => h.id === s.hypothesisId)?.title || s.hypothesisId;
                   const meta = statusMeta(s.status);
                   const Icon = meta.icon;
-                  const label = s.kind === "support" ? `دعم: ${title}` : `استبعاد: ${title}`;
+                  const label =
+                    s.kind === "support"
+                      ? `دعم الفرضية النهائية: ${title}`
+                      : `استبعاد فرضية: ${title}`;
                   return (
                     <div key={s.stepKey} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
                       <div className="flex items-center justify-between gap-3">
@@ -340,21 +338,13 @@ export default function Report() {
               </div>
             </div>
 
-            {result.issues.length > 0 && (
-              <div className="space-y-3">
-                <div className="font-bold">ملاحظات تساعدك تتحسن (بدون كشف الحل)</div>
-                <div className="space-y-3">
-                  {result.issues.map((g) => (
-                    <div key={g.type} className="p-4 rounded-xl border border-border/40 bg-secondary/10">
-                      <div className="font-bold text-sm mb-2">{g.title}</div>
-                      <ul className="list-disc pr-5 space-y-1 text-xs text-muted-foreground">
-                        {g.items.map((it, idx) => (
-                          <li key={idx}>{it}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+            {result.learningCards.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {result.learningCards.map((text, idx) => (
+                  <div key={`${text}-${idx}`} className="p-4 rounded-xl border border-border/40 bg-secondary/10 text-sm">
+                    {text}
+                  </div>
+                ))}
               </div>
             )}
 

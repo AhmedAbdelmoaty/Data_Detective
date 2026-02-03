@@ -175,7 +175,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         correctHypothesis: false,
         remainingHypothesisId: "",
         ledger: [],
-        issues: [],
+        learningCards: [],
         managerMessage: "المحاولات خلصت. لازم تعيد البدء.",
       };
     }
@@ -192,7 +192,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         correctHypothesis: false,
         remainingHypothesisId: remaining[0]?.id ?? "",
         ledger: [],
-        issues: [],
+        learningCards: [],
         managerMessage: "لازم تسيب فرضية واحدة بس قبل ما تقدّم التقرير.",
       };
     }
@@ -208,7 +208,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         correctHypothesis: false,
         remainingHypothesisId: finalHypothesisId,
         ledger: [],
-        issues: [],
+        learningCards: [],
         managerMessage: "قبل ما تقدّم التقرير، أكد الفرضية المتبقية كسبب رئيسي.",
       };
     }
