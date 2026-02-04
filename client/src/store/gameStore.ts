@@ -19,6 +19,9 @@ interface GameState {
   selectedHypothesisId: string | null; // confirmation step on Report page
   finalSupportJustifications: JustificationItem[];
 
+  // آخر نتيجة تقرير (علشان نعرضها في مكتب المدير حتى لو خرجت/رجعت)
+  lastReportResult: ReportResult | null;
+
   gameStatus: "briefing" | "playing" | "solved" | "failed";
   hasVisitedOffice: boolean;
 
@@ -88,6 +91,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedHypothesisId: null,
   finalSupportJustifications: [],
 
+  lastReportResult: null,
+
   gameStatus: "briefing",
   hasVisitedOffice: false,
 
@@ -106,6 +111,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       eliminations: [],
       selectedHypothesisId: null,
       finalSupportJustifications: [],
+      lastReportResult: null,
       gameStatus: "briefing",
       hasVisitedOffice: false,
     }),
@@ -143,6 +149,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         eliminations: [...filteredElims, elimination],
         ...resetReportDraft(state),
+        lastReportResult: null,
       };
     }),
 
@@ -150,6 +157,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       eliminations: state.eliminations.filter((e) => e.hypothesisId !== hypothesisId),
       ...resetReportDraft(state),
+      lastReportResult: null,
     })),
 
   selectFinalHypothesis: (hypothesisId) =>
@@ -157,11 +165,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       selectedHypothesisId: hypothesisId,
       // تأكيد الفرضية يعيد اختيار الدعم (علشان مايبقاش في دعم قديم)
       finalSupportJustifications: [],
+      lastReportResult: null,
     })),
 
   setFinalSupportJustifications: (items) =>
     set(() => ({
       finalSupportJustifications: uniqueJustifications(items),
+      lastReportResult: null,
     })),
 
   submitConclusion: () => {
@@ -235,6 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       reportAttemptsLeft: nextAttemptsLeft,
       gameStatus: nextStatus,
+      lastReportResult: evalResult,
     });
 
     return evalResult;
