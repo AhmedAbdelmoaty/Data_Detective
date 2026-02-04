@@ -1,14 +1,16 @@
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useGameStore } from "@/store/gameStore";
-import { Users, MessageSquare } from "lucide-react";
+import { Users, MessageSquare, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Interviews() {
-  const { gameStatus, currentCase, interviewedIds, askQuestion, hasVisitedOffice } = useGameStore();
+  const { gameStatus, currentCase, interviewedIds, askQuestion, hasVisitedOffice, getRemainingHypotheses } = useGameStore();
   const [_, setLocation] = useLocation();
+
+  const remaining = getRemainingHypotheses();
 
   useEffect(() => {
     if (!hasVisitedOffice || gameStatus === "briefing") setLocation("/office");
@@ -25,6 +27,18 @@ export default function Interviews() {
           غرفة المقابلات
         </h1>
         <p className="text-muted-foreground mt-2">ناقش الموظفين الرئيسيين واختر الأسئلة المفيدة.</p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="px-3 py-2 rounded-lg bg-secondary/50 text-sm text-muted-foreground">
+            الفرضيات المتبقية: <span className="font-bold text-foreground">{remaining.length}</span>
+          </div>
+          <Link href="/hypotheses">
+            <div className="px-3 py-2 rounded-lg bg-card hover:bg-secondary/40 border border-border/40 text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              الرجوع لمكتب المحلل
+            </div>
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
