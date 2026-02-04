@@ -2,9 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
   Search, 
-  Database, 
   Users, 
-  FileText, 
   LayoutDashboard,
   Lightbulb,
   Briefcase
@@ -13,11 +11,9 @@ import { useGameStore } from "@/store/gameStore";
 
 const items = [
   { name: "مكتب المدير", icon: Briefcase, path: "/office" },
-  { name: "لوحة الفرضيات", icon: Lightbulb, path: "/hypotheses", isHub: true },
+  { name: "مكتب المحلل", icon: Lightbulb, path: "/hypotheses", isHub: true },
   { name: "غرفة الأدلة", icon: Search, path: "/evidence" },
-  { name: "مركز البيانات", icon: Database, path: "/data" },
   { name: "المقابلات", icon: Users, path: "/interviews" },
-  { name: "التقرير النهائي", icon: FileText, path: "/report" },
 ];
 
 export function Sidebar() {
