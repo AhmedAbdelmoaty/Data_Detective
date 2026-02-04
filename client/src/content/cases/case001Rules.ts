@@ -13,7 +13,10 @@ export type HypothesisReasonProfile = {
   decoy: ReasonRef[];
 };
 
-export const case001Rules: Record<"h1" | "h2" | "h3" | "h4", HypothesisReasonProfile> = {
+export const case001Rules: Record<
+  "h1" | "h2" | "h3" | "h4",
+  HypothesisReasonProfile
+> = {
   // H1: ضعف فريق المبيعات
   h1: {
     // ينفي فرضية المبيعات
@@ -28,7 +31,11 @@ export const case001Rules: Record<"h1" | "h2" | "h3" | "h4", HypothesisReasonPro
   h2: {
     anti: [],
     // يدعم H2
-    pro: ["interview:q1_1", "interview:q2_2", "data:insight_leads_quality_combined"],
+    pro: [
+      "interview:q1_1",
+      "interview:q2_2",
+      "data:insight_unqualified_majority",
+    ],
     decoy: [],
   },
 
