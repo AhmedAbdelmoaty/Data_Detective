@@ -17,10 +17,7 @@ interface DataTableProps {
 
 export function DataTable({ data, columns, title }: DataTableProps) {
   return (
-    <div
-      className="rounded-xl border border-border/50 bg-card/50 overflow-hidden shadow-sm"
-      dir="rtl"
-    >
+    <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden shadow-sm">
       <div className="bg-secondary/30 px-6 py-4 border-b border-border/50">
         <h3 className="font-bold text-foreground flex items-center gap-2 flex-row-reverse justify-end text-right">
           <span className="w-2 h-6 bg-primary rounded-full"></span>

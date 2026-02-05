@@ -238,8 +238,8 @@ export default function HypothesisBoard({
 
   return (
     <div className="p-8 h-full flex flex-col">
-      <header className="mb-6 text-right">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3 flex-row-reverse">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
           <Lightbulb className="w-8 h-8 text-primary" />
           مكتب المحلل
         </h1>
@@ -350,6 +350,28 @@ export default function HypothesisBoard({
                     )}
 
                     <div className="flex items-start justify-between gap-4">
+                      <div className="mt-1 flex justify-start">
+                        {isEliminated ? (
+                          <button
+                            onClick={() => restoreHypothesis(hypothesis.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
+                            data-testid={`button-restore-${hypothesis.id}`}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            <span>استعادة</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEliminate(hypothesis)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
+                            data-testid={`button-eliminate-${hypothesis.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                            <span>استبعاد</span>
+                          </button>
+                        )}
+                      </div>
+
                       <div className="flex-1 min-w-0 text-right">
                         <div className="flex items-start gap-4 flex-row-reverse">
                           <div
@@ -400,28 +422,6 @@ export default function HypothesisBoard({
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="mt-1 flex justify-start">
-                        {isEliminated ? (
-                          <button
-                            onClick={() => restoreHypothesis(hypothesis.id)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
-                            data-testid={`button-restore-${hypothesis.id}`}
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            <span>استعادة</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEliminate(hypothesis)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-                            data-testid={`button-eliminate-${hypothesis.id}`}
-                          >
-                            <X className="w-4 h-4" />
-                            <span>استبعاد</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -590,13 +590,24 @@ export default function HypothesisBoard({
                       <div
                         key={insight.id}
                         className={cn(
-                          "flex items-start justify-between gap-4 p-4 rounded-xl border-2 transition-all",
+                          "flex items-start gap-4 p-4 rounded-xl border-2 transition-all",
                           discovered
                             ? "bg-emerald-500/10 border-emerald-500/30"
                             : "bg-secondary/30 border-border/50 hover:border-amber-500/30",
                         )}
                       >
-                        <div className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0">
+                        {!discovered && (
+                          <button
+                            onClick={() => discoverDataInsight(insight.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition-colors text-sm font-medium"
+                            data-testid={`button-discover-${insight.id}`}
+                          >
+                            <Lightbulb className="w-4 h-4" />
+                            <span>تسجيل</span>
+                          </button>
+                        )}
+
+                        <div className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0 ml-auto">
                           {discovered ? (
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                               <Check className="w-4 h-4 text-emerald-500" />
@@ -625,17 +636,6 @@ export default function HypothesisBoard({
                             </div>
                           </div>
                         </div>
-
-                        {!discovered && (
-                          <button
-                            onClick={() => discoverDataInsight(insight.id)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition-colors text-sm font-medium"
-                            data-testid={`button-discover-${insight.id}`}
-                          >
-                            <Lightbulb className="w-4 h-4" />
-                            <span>تسجيل</span>
-                          </button>
-                        )}
                       </div>
                     );
                   }),
