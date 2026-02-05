@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { Case, Hypothesis, EliminationJustification } from "@shared/schema";
 import { case001 } from "../content/cases/case001";
-import { evaluateCase001Report, ReportEvaluation, JustificationItem } from "@/lib/reportEvaluator";
+import {
+  evaluateCase001Report,
+  ReportEvaluation,
+  JustificationItem,
+} from "@/lib/reportEvaluator";
 
 export type ReportResult = ReportEvaluation;
 
@@ -19,22 +23,28 @@ interface GameState {
   selectedHypothesisId: string | null; // confirmation step on Report page
   finalSupportJustifications: JustificationItem[];
 
-  // آخر نتيجة تقرير (علشان نعرضها في مكتب المدير حتى لو خرجت/رجعت)
-  lastReportResult: ReportResult | null;
-
   gameStatus: "briefing" | "playing" | "solved" | "failed";
   hasVisitedOffice: boolean;
+
+  // آخر نتيجة تقرير (علشان عرضها في مكتب المدير بعد التسليم)
+  lastReportResult: ReportResult | null;
 
   // Actions
   startGame: () => void;
   resetGame: () => void;
   visitOffice: () => void;
+  clearLastReportResult: () => void;
+
+  clearLastReportResult: () => void;
 
   visitEvidence: (evidenceId: string) => void;
   askQuestion: (questionId: string) => void;
   discoverDataInsight: (insightId: string) => void;
 
-  eliminateHypothesis: (hypothesisId: string, justifications: JustificationItem[]) => void;
+  eliminateHypothesis: (
+    hypothesisId: string,
+    justifications: JustificationItem[],
+  ) => void;
   restoreHypothesis: (hypothesisId: string) => void;
   selectFinalHypothesis: (hypothesisId: string) => void;
 
@@ -45,7 +55,9 @@ interface GameState {
   // Helpers
   getRemainingHypotheses: () => Hypothesis[];
   isHypothesisEliminated: (hypothesisId: string) => boolean;
-  getEliminationJustification: (hypothesisId: string) => EliminationJustification | undefined;
+  getEliminationJustification: (
+    hypothesisId: string,
+  ) => EliminationJustification | undefined;
 
   getDiscoveredEvidence: () => Case["evidence"];
   getCompletedInterviews: () => {
@@ -55,7 +67,12 @@ interface GameState {
     response: string;
     infoSummary: string;
   }[];
-  getDiscoveredInsights: () => { id: string; datasetName: string; title: string; description: string }[];
+  getDiscoveredInsights: () => {
+    id: string;
+    datasetName: string;
+    title: string;
+    description: string;
+  }[];
 }
 
 function uniqueJustifications(items: JustificationItem[]): JustificationItem[] {
@@ -70,7 +87,9 @@ function uniqueJustifications(items: JustificationItem[]): JustificationItem[] {
   return out;
 }
 
-function resetReportDraft(state: Pick<GameState, "selectedHypothesisId" | "finalSupportJustifications">) {
+function resetReportDraft(
+  state: Pick<GameState, "selectedHypothesisId" | "finalSupportJustifications">,
+) {
   return {
     selectedHypothesisId: null,
     finalSupportJustifications: [],
@@ -91,10 +110,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedHypothesisId: null,
   finalSupportJustifications: [],
 
-  lastReportResult: null,
-
   gameStatus: "briefing",
   hasVisitedOffice: false,
+  lastReportResult: null,
 
   startGame: () => set({ gameStatus: "playing", reportAttemptsLeft: 3 }),
 
@@ -111,10 +129,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       eliminations: [],
       selectedHypothesisId: null,
       finalSupportJustifications: [],
-      lastReportResult: null,
       gameStatus: "briefing",
       hasVisitedOffice: false,
+      lastReportResult: null,
     }),
+
+  clearLastReportResult: () => set({ lastReportResult: null }),
 
   visitEvidence: (evidenceId) =>
     set((state) => {
@@ -131,13 +151,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   discoverDataInsight: (insightId) =>
     set((state) => {
       if (state.discoveredDataInsightIds.includes(insightId)) return state;
-      return { discoveredDataInsightIds: [...state.discoveredDataInsightIds, insightId] };
+      return {
+        discoveredDataInsightIds: [
+          ...state.discoveredDataInsightIds,
+          insightId,
+        ],
+      };
     }),
 
   eliminateHypothesis: (hypothesisId, justifications) =>
     set((state) => {
       // Replace existing elimination if any
-      const filteredElims = state.eliminations.filter((e) => e.hypothesisId !== hypothesisId);
+      const filteredElims = state.eliminations.filter(
+        (e) => e.hypothesisId !== hypothesisId,
+      );
 
       const elimination: EliminationJustification = {
         hypothesisId,
@@ -149,15 +176,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         eliminations: [...filteredElims, elimination],
         ...resetReportDraft(state),
-        lastReportResult: null,
       };
     }),
 
   restoreHypothesis: (hypothesisId) =>
     set((state) => ({
-      eliminations: state.eliminations.filter((e) => e.hypothesisId !== hypothesisId),
+      eliminations: state.eliminations.filter(
+        (e) => e.hypothesisId !== hypothesisId,
+      ),
       ...resetReportDraft(state),
-      lastReportResult: null,
     })),
 
   selectFinalHypothesis: (hypothesisId) =>
@@ -165,13 +192,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       selectedHypothesisId: hypothesisId,
       // تأكيد الفرضية يعيد اختيار الدعم (علشان مايبقاش في دعم قديم)
       finalSupportJustifications: [],
-      lastReportResult: null,
     })),
 
   setFinalSupportJustifications: (items) =>
     set(() => ({
       finalSupportJustifications: uniqueJustifications(items),
-      lastReportResult: null,
     })),
 
   submitConclusion: () => {
@@ -191,7 +216,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const remaining = state.currentCase.hypotheses.filter(
-      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id)
+      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id),
     );
 
     if (remaining.length !== 1) {
@@ -219,7 +244,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         remainingHypothesisId: finalHypothesisId,
         ledger: [],
         learningCards: [],
-        managerMessage: "قبل ما تقدّم التقرير، أكد الفرضية المتبقية كسبب رئيسي.",
+        managerMessage:
+          "قبل ما تقدّم التقرير، أكد الفرضية المتبقية كسبب رئيسي.",
       };
     }
 
@@ -253,16 +279,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getRemainingHypotheses: () => {
     const state = get();
-    return state.currentCase.hypotheses.filter((h) => !state.eliminations.some((e) => e.hypothesisId === h.id));
+    return state.currentCase.hypotheses.filter(
+      (h) => !state.eliminations.some((e) => e.hypothesisId === h.id),
+    );
   },
 
-  isHypothesisEliminated: (hypothesisId) => get().eliminations.some((e) => e.hypothesisId === hypothesisId),
+  isHypothesisEliminated: (hypothesisId) =>
+    get().eliminations.some((e) => e.hypothesisId === hypothesisId),
 
-  getEliminationJustification: (hypothesisId) => get().eliminations.find((e) => e.hypothesisId === hypothesisId),
+  getEliminationJustification: (hypothesisId) =>
+    get().eliminations.find((e) => e.hypothesisId === hypothesisId),
 
   getDiscoveredEvidence: () => {
     const state = get();
-    return state.currentCase.evidence.filter((ev) => state.visitedEvidenceIds.includes(ev.id));
+    return state.currentCase.evidence.filter((ev) =>
+      state.visitedEvidenceIds.includes(ev.id),
+    );
   },
 
   getCompletedInterviews: () => {
@@ -293,11 +325,21 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getDiscoveredInsights: () => {
     const state = get();
-    const res: { id: string; datasetName: string; title: string; description: string }[] = [];
+    const res: {
+      id: string;
+      datasetName: string;
+      title: string;
+      description: string;
+    }[] = [];
     for (const ds of state.currentCase.dataSets) {
       for (const ins of ds.insights) {
         if (state.discoveredDataInsightIds.includes(ins.id)) {
-          res.push({ id: ins.id, datasetName: ds.name, title: ins.title, description: ins.description });
+          res.push({
+            id: ins.id,
+            datasetName: ds.name,
+            title: ins.title,
+            description: ins.description,
+          });
         }
       }
     }

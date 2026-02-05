@@ -1,24 +1,25 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  Search, 
-  Users, 
+import {
+  Search,
+  Users,
   LayoutDashboard,
   Lightbulb,
-  Briefcase
+  Briefcase,
 } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 
 const items = [
   { name: "مكتب المدير", icon: Briefcase, path: "/office" },
-  { name: "مكتب المحلل", icon: Lightbulb, path: "/hypotheses", isHub: true },
-  { name: "غرفة الأدلة", icon: Search, path: "/evidence" },
-  { name: "المقابلات", icon: Users, path: "/interviews" },
+  { name: "مكتب المحلل", icon: Lightbulb, path: "/analyst", isHub: true },
+  { name: "أرشيف الملفات", icon: Search, path: "/archive" },
+  { name: "غرفة الاجتماعات", icon: Users, path: "/meetings" },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { trust, getRemainingHypotheses, currentCase, eliminations } = useGameStore();
+  const { trust, getRemainingHypotheses, currentCase, eliminations } =
+    useGameStore();
   const remainingHypotheses = getRemainingHypotheses();
   const totalHypotheses = currentCase.hypotheses.length;
   const eliminatedCount = eliminations.length;
@@ -46,24 +47,38 @@ export function Sidebar() {
               <span className="font-mono font-bold text-accent">{trust}%</span>
             </div>
             <div className="h-2 bg-background rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-accent transition-all duration-500" 
+              <div
+                className="h-full bg-accent transition-all duration-500"
                 style={{ width: `${trust}%` }}
               />
             </div>
           </div>
-          
+
           <div className="pt-3 border-t border-border/30">
             <div className="flex justify-between text-sm mb-1">
               <span className="text-muted-foreground">الفرضيات المتبقية</span>
-              <span className={cn("font-mono font-bold", remainingHypotheses.length === 1 ? "text-green-500" : "text-foreground")}>
+              <span
+                className={cn(
+                  "font-mono font-bold",
+                  remainingHypotheses.length === 1
+                    ? "text-green-500"
+                    : "text-foreground",
+                )}
+              >
                 {remainingHypotheses.length} / {totalHypotheses}
               </span>
             </div>
             <div className="h-2 bg-background rounded-full overflow-hidden">
-              <div 
-                className={cn("h-full transition-all duration-500", remainingHypotheses.length === 1 ? "bg-green-500" : "bg-muted-foreground")} 
-                style={{ width: `${(eliminatedCount / totalHypotheses) * 100}%` }}
+              <div
+                className={cn(
+                  "h-full transition-all duration-500",
+                  remainingHypotheses.length === 1
+                    ? "bg-green-500"
+                    : "bg-muted-foreground",
+                )}
+                style={{
+                  width: `${(eliminatedCount / totalHypotheses) * 100}%`,
+                }}
               />
             </div>
           </div>
@@ -74,16 +89,24 @@ export function Sidebar() {
         {items.map((item) => {
           const isActive = location === item.path;
           return (
-            <Link key={item.path} href={item.path} className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-              isActive 
-                ? "bg-primary/10 text-primary shadow-sm" 
-                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-            )}>
-              <item.icon className={cn(
-                "w-5 h-5 transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary"
-              )} />
+            <Link
+              key={item.path}
+              href={item.path}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                isActive
+                  ? "bg-primary/10 text-primary shadow-sm"
+                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+              )}
+            >
+              <item.icon
+                className={cn(
+                  "w-5 h-5 transition-colors",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground group-hover:text-primary",
+                )}
+              />
               <span className="font-medium">{item.name}</span>
             </Link>
           );
