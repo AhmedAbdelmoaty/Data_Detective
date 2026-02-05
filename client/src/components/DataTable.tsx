@@ -19,7 +19,7 @@ export function DataTable({ data, columns, title }: DataTableProps) {
   return (
     <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden shadow-sm">
       <div className="bg-secondary/30 px-6 py-4 border-b border-border/50">
-        <h3 className="font-bold text-foreground flex items-center gap-2">
+        <h3 className="font-bold text-foreground flex items-center gap-2 flex-row-reverse justify-end text-right">
           <span className="w-2 h-6 bg-primary rounded-full"></span>
           {title}
         </h3>
@@ -29,7 +29,10 @@ export function DataTable({ data, columns, title }: DataTableProps) {
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/50">
               {columns.map((col) => (
-                <TableHead key={col} className="text-right font-bold text-primary">
+                <TableHead
+                  key={col}
+                  className="text-right font-bold text-primary"
+                >
                   {col.toUpperCase()}
                 </TableHead>
               ))}
@@ -45,7 +48,10 @@ export function DataTable({ data, columns, title }: DataTableProps) {
                 )}
               >
                 {columns.map((col) => (
-                  <TableCell key={`${row.id}-${col}`} className="font-mono text-muted-foreground">
+                  <TableCell
+                    key={`${row.id}-${col}`}
+                    className="font-mono text-muted-foreground text-right"
+                  >
                     {row[col]}
                   </TableCell>
                 ))}
