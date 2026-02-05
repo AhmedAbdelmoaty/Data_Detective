@@ -263,7 +263,7 @@ export default function HypothesisBoard({
         {remainingCount === 1 && (
           <button
             onClick={() => setTab("report")}
-            className="bg-accent/25 text-accent px-4 py-2.5 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/35 transition-colors font-semibold ring-1 ring-accent/40 shadow-[0_0_14px_rgba(250,204,21,0.2)]"
+            className="bg-accent/35 text-foreground px-5 py-3 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/45 transition-colors font-semibold ring-2 ring-accent/50 shadow-[0_0_18px_rgba(250,204,21,0.3)]"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full rounded-full bg-accent/60 opacity-75 animate-pulse" />
@@ -282,17 +282,17 @@ export default function HypothesisBoard({
         onValueChange={setTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="w-fit rounded-lg bg-muted/70 p-1.5 shadow-sm">
+        <TabsList className="w-fit rounded-xl bg-muted/70 p-2 shadow-sm border border-border/40">
           <TabsTrigger
             value="hypotheses"
-            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
+            className="gap-2 px-5 py-3 text-base font-semibold border border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:ring-2 data-[state=active]:ring-primary/40 data-[state=active]:shadow-md data-[state=active]:border-primary/60"
           >
             <Lightbulb className="w-4 h-4" />
             الفرضيات
           </TabsTrigger>
           <TabsTrigger
             value="data"
-            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
+            className="gap-2 px-5 py-3 text-base font-semibold border border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:ring-2 data-[state=active]:ring-primary/40 data-[state=active]:shadow-md data-[state=active]:border-primary/60"
           >
             <BarChart3 className="w-4 h-4" />
             لوحة البيانات
@@ -302,7 +302,7 @@ export default function HypothesisBoard({
           </TabsTrigger>
           <TabsTrigger
             value="report"
-            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
+            className="gap-2 px-5 py-3 text-base font-semibold border border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:ring-2 data-[state=active]:ring-primary/40 data-[state=active]:shadow-md data-[state=active]:border-primary/60"
             disabled={!isReadyToReport && !attemptsDepleted}
           >
             <FileText className="w-4 h-4" />
@@ -349,76 +349,80 @@ export default function HypothesisBoard({
                       </div>
                     )}
 
-                    <div className="flex items-start gap-4 flex-row-reverse">
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                          isEliminated ? "bg-muted" : "bg-primary/10",
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="mt-1 flex justify-start">
+                        {isEliminated ? (
+                          <button
+                            onClick={() => restoreHypothesis(hypothesis.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
+                            data-testid={`button-restore-${hypothesis.id}`}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            <span>استعادة</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEliminate(hypothesis)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
+                            data-testid={`button-eliminate-${hypothesis.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                            <span>استبعاد</span>
+                          </button>
                         )}
-                      >
-                        <IconComponent
-                          className={cn(
-                            "w-6 h-6",
-                            isEliminated
-                              ? "text-muted-foreground"
-                              : "text-primary",
-                          )}
-                        />
                       </div>
 
                       <div className="flex-1 min-w-0 text-right">
-                        <h3
-                          className={cn(
-                            "text-lg font-bold mb-1",
-                            isEliminated
-                              ? "text-muted-foreground line-through"
-                              : "text-foreground",
-                          )}
-                        >
-                          {hypothesis.title}
-                        </h3>
-                        <p
-                          className={cn(
-                            "text-sm",
-                            isEliminated
-                              ? "text-muted-foreground/60"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {hypothesis.description}
-                        </p>
-
-                        {isEliminated && justificationSummary && (
-                          <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1 justify-end">
-                            <FileText className="w-3 h-3" />
-                            <span>
-                              تم الاستبعاد بناءً على: {justificationSummary}
-                            </span>
+                        <div className="flex items-start gap-4 flex-row-reverse">
+                          <div
+                            className={cn(
+                              "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                              isEliminated ? "bg-muted" : "bg-primary/10",
+                            )}
+                          >
+                            <IconComponent
+                              className={cn(
+                                "w-6 h-6",
+                                isEliminated
+                                  ? "text-muted-foreground"
+                                  : "text-primary",
+                              )}
+                            />
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="mt-4 flex justify-end gap-2">
-                      {isEliminated ? (
-                        <button
-                          onClick={() => restoreHypothesis(hypothesis.id)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
-                          data-testid={`button-restore-${hypothesis.id}`}
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                          <span>استعادة</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleEliminate(hypothesis)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-                          data-testid={`button-eliminate-${hypothesis.id}`}
-                        >
-                          <X className="w-4 h-4" />
-                          <span>استبعاد</span>
-                        </button>
-                      )}
+                          <div className="flex-1 min-w-0 text-right">
+                            <h3
+                              className={cn(
+                                "text-lg font-bold mb-1",
+                                isEliminated
+                                  ? "text-muted-foreground line-through"
+                                  : "text-foreground",
+                              )}
+                            >
+                              {hypothesis.title}
+                            </h3>
+                            <p
+                              className={cn(
+                                "text-sm",
+                                isEliminated
+                                  ? "text-muted-foreground/60"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {hypothesis.description}
+                            </p>
+
+                            {isEliminated && justificationSummary && (
+                              <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1 justify-end flex-row-reverse">
+                                <FileText className="w-3 h-3" />
+                                <span>
+                                  تم الاستبعاد بناءً على: {justificationSummary}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 );
@@ -435,22 +439,22 @@ export default function HypothesisBoard({
               يجب تحديد الأدلة أو المقابلات أو البيانات التي أقنعتك بأن الفرضية
               غير صحيحة.
             </p>
-            <div className="flex flex-wrap gap-3 justify-end">
+            <div className="flex flex-wrap gap-3 justify-end flex-row-reverse">
               <Link href="/archive">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-primary/10 transition-colors cursor-pointer text-sm font-medium border border-border/40 shadow-sm">
+                <div className="flex items-center gap-2 flex-row-reverse px-5 py-3 rounded-lg bg-card/80 hover:bg-primary/10 transition-colors cursor-pointer text-base font-medium border border-border/40 shadow-sm">
                   <FileSearch className="w-4 h-4 text-primary" />
                   <span>أرشيف الملفات</span>
                 </div>
               </Link>
               <Link href="/meetings">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-accent/10 transition-colors cursor-pointer text-sm font-medium border border-border/40 shadow-sm">
+                <div className="flex items-center gap-2 flex-row-reverse px-5 py-3 rounded-lg bg-card/80 hover:bg-accent/10 transition-colors cursor-pointer text-base font-medium border border-border/40 shadow-sm">
                   <Users className="w-4 h-4 text-accent" />
                   <span>غرفة الاجتماعات</span>
                 </div>
               </Link>
               <button
                 onClick={() => setTab("data")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-emerald-500/10 transition-colors text-sm font-medium border border-border/40 shadow-sm"
+                className="flex items-center gap-2 flex-row-reverse px-5 py-3 rounded-lg bg-card/80 hover:bg-emerald-500/10 transition-colors text-base font-medium border border-border/40 shadow-sm"
               >
                 <BarChart3 className="w-4 h-4 text-emerald-500" />
                 <span>لوحة البيانات</span>
@@ -573,7 +577,7 @@ export default function HypothesisBoard({
                 <Lightbulb className="w-5 h-5 text-amber-500" />
                 الرؤى المتاحة
               </h2>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground mb-4 text-right">
                 ادرس الرسوم البيانية أعلاه. عندما تلاحظ نمطاً مهماً، اضغط على
                 "تسجيل" لحفظه كدليل.
               </p>
@@ -586,13 +590,24 @@ export default function HypothesisBoard({
                       <div
                         key={insight.id}
                         className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border-2 transition-all flex-row-reverse gap-4",
+                          "flex items-start gap-4 p-4 rounded-xl border-2 transition-all",
                           discovered
                             ? "bg-emerald-500/10 border-emerald-500/30"
                             : "bg-secondary/30 border-border/50 hover:border-amber-500/30",
                         )}
                       >
-                        <div className="flex items-start gap-3 flex-row-reverse text-right">
+                        {!discovered && (
+                          <button
+                            onClick={() => discoverDataInsight(insight.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition-colors text-sm font-medium"
+                            data-testid={`button-discover-${insight.id}`}
+                          >
+                            <Lightbulb className="w-4 h-4" />
+                            <span>تسجيل</span>
+                          </button>
+                        )}
+
+                        <div className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0 ml-auto">
                           {discovered ? (
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                               <Check className="w-4 h-4 text-emerald-500" />
@@ -621,17 +636,6 @@ export default function HypothesisBoard({
                             </div>
                           </div>
                         </div>
-
-                        {!discovered && (
-                          <button
-                            onClick={() => discoverDataInsight(insight.id)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition-colors text-sm font-medium"
-                            data-testid={`button-discover-${insight.id}`}
-                          >
-                            <Lightbulb className="w-4 h-4" />
-                            <span>تسجيل</span>
-                          </button>
-                        )}
                       </div>
                     );
                   }),
