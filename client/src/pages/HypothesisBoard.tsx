@@ -237,9 +237,9 @@ export default function HypothesisBoard({
     discoveredDataInsightIds.includes(id);
 
   return (
-    <div className="p-8 h-full flex flex-col">
+    <div className="p-8 h-full flex flex-col text-right" dir="rtl">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3 flex-row-reverse justify-end">
           <Lightbulb className="w-8 h-8 text-primary" />
           مكتب المحلل
         </h1>
@@ -248,7 +248,7 @@ export default function HypothesisBoard({
         </p>
       </header>
 
-      <div className="flex flex-wrap items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4 mb-6 justify-end">
         <div className="bg-primary/10 px-4 py-2 rounded-lg">
           <span className="text-muted-foreground">المتبقية: </span>
           <span className="font-bold text-primary">{remainingCount}</span>
@@ -282,7 +282,10 @@ export default function HypothesisBoard({
         onValueChange={setTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="w-fit rounded-xl bg-muted/70 p-2 shadow-sm border border-border/40">
+        <TabsList
+          dir="ltr"
+          className="w-fit rounded-xl bg-muted/70 p-2 shadow-sm border border-border/40"
+        >
           <TabsTrigger
             value="hypotheses"
             className="gap-2 px-5 py-3 text-base font-semibold border border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:ring-2 data-[state=active]:ring-primary/40 data-[state=active]:shadow-md data-[state=active]:border-primary/60"
@@ -349,7 +352,10 @@ export default function HypothesisBoard({
                       </div>
                     )}
 
-                    <div className="flex items-start justify-between gap-4">
+                    <div
+                      className="flex items-start justify-between gap-4"
+                      dir="ltr"
+                    >
                       <div className="mt-1 flex justify-start">
                         {isEliminated ? (
                           <button
@@ -589,8 +595,9 @@ export default function HypothesisBoard({
                     return (
                       <div
                         key={insight.id}
+                        dir="ltr"
                         className={cn(
-                          "flex items-start gap-4 p-4 rounded-xl border-2 transition-all",
+                          "flex items-start justify-between gap-4 p-4 rounded-xl border-2 transition-all",
                           discovered
                             ? "bg-emerald-500/10 border-emerald-500/30"
                             : "bg-secondary/30 border-border/50 hover:border-amber-500/30",
@@ -607,7 +614,10 @@ export default function HypothesisBoard({
                           </button>
                         )}
 
-                        <div className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0 ml-auto">
+                        <div
+                          className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0"
+                          dir="rtl"
+                        >
                           {discovered ? (
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                               <Check className="w-4 h-4 text-emerald-500" />
@@ -659,7 +669,8 @@ export default function HypothesisBoard({
         {/* --- Report --- */}
         <TabsContent
           value="report"
-          className="flex-1 min-h-0 mt-6 overflow-auto"
+          className="flex-1 min-h-0 mt-6 overflow-auto text-right"
+          dir="rtl"
         >
           <div className="space-y-8 pb-24">
             <header className="space-y-2">
@@ -774,16 +785,24 @@ export default function HypothesisBoard({
                                     : "border-border/40 bg-secondary/20 hover:bg-secondary/30")
                                 }
                               >
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-1 text-primary">
-                                    <FileText className="w-5 h-5" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-bold text-sm">
-                                      {item.title}
+                                <div
+                                  className="flex items-start justify-between gap-3"
+                                  dir="ltr"
+                                >
+                                  <div
+                                    className="flex items-start gap-3 flex-row-reverse text-right flex-1 min-w-0"
+                                    dir="rtl"
+                                  >
+                                    <div className="mt-1 text-primary">
+                                      <FileText className="w-5 h-5" />
                                     </div>
-                                    <div className="text-xs text-muted-foreground whitespace-pre-line mt-1">
-                                      {item.detail}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-sm">
+                                        {item.title}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground whitespace-pre-line mt-1">
+                                        {item.detail}
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="mt-1">
