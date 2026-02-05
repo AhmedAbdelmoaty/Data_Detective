@@ -248,10 +248,7 @@ export default function HypothesisBoard({
         </p>
       </header>
 
-      <div
-        className="flex flex-wrap items-center gap-4 mb-6 justify-end text-right"
-        dir="rtl"
-      >
+      <div className="flex flex-wrap items-center gap-4 mb-6 justify-end">
         <div className="bg-primary/10 px-4 py-2 rounded-lg">
           <span className="text-muted-foreground">المتبقية: </span>
           <span className="font-bold text-primary">{remainingCount}</span>
@@ -355,7 +352,32 @@ export default function HypothesisBoard({
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-4" dir="rtl">
+                    <div
+                      className="flex items-start justify-between gap-4"
+                      dir="ltr"
+                    >
+                      <div className="mt-1 flex justify-start">
+                        {isEliminated ? (
+                          <button
+                            onClick={() => restoreHypothesis(hypothesis.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
+                            data-testid={`button-restore-${hypothesis.id}`}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            <span>استعادة</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEliminate(hypothesis)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
+                            data-testid={`button-eliminate-${hypothesis.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                            <span>استبعاد</span>
+                          </button>
+                        )}
+                      </div>
+
                       <div className="flex-1 min-w-0 text-right">
                         <div className="flex items-start gap-4 flex-row-reverse">
                           <div
@@ -406,28 +428,6 @@ export default function HypothesisBoard({
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex justify-start">
-                        {isEliminated ? (
-                          <button
-                            onClick={() => restoreHypothesis(hypothesis.id)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
-                            data-testid={`button-restore-${hypothesis.id}`}
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            <span>استعادة</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEliminate(hypothesis)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-                            data-testid={`button-eliminate-${hypothesis.id}`}
-                          >
-                            <X className="w-4 h-4" />
-                            <span>استبعاد</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </motion.div>
