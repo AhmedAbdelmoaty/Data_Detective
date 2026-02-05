@@ -263,8 +263,12 @@ export default function HypothesisBoard({
         {remainingCount === 1 && (
           <button
             onClick={() => setTab("report")}
-            className="bg-accent/20 text-accent px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/30 transition-colors"
+            className="bg-accent/25 text-accent px-4 py-2.5 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/35 transition-colors font-semibold ring-1 ring-accent/40 shadow-[0_0_14px_rgba(250,204,21,0.2)]"
           >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-accent/60 opacity-75 animate-pulse" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+            </span>
             <Check className="w-4 h-4" />
             <span className="font-medium">
               فرضية واحدة متبقية - جهّز التقرير
@@ -278,12 +282,18 @@ export default function HypothesisBoard({
         onValueChange={setTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="w-fit">
-          <TabsTrigger value="hypotheses" className="gap-2">
+        <TabsList className="w-fit rounded-lg bg-muted/70 p-1.5 shadow-sm">
+          <TabsTrigger
+            value="hypotheses"
+            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
+          >
             <Lightbulb className="w-4 h-4" />
             الفرضيات
           </TabsTrigger>
-          <TabsTrigger value="data" className="gap-2">
+          <TabsTrigger
+            value="data"
+            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
+          >
             <BarChart3 className="w-4 h-4" />
             لوحة البيانات
             {discoveredDataInsightIds.length === 0 && (
@@ -292,7 +302,7 @@ export default function HypothesisBoard({
           </TabsTrigger>
           <TabsTrigger
             value="report"
-            className="gap-2"
+            className="gap-2 px-4 py-2 text-base data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/40 data-[state=active]:shadow-sm"
             disabled={!isReadyToReport && !attemptsDepleted}
           >
             <FileText className="w-4 h-4" />
@@ -301,7 +311,11 @@ export default function HypothesisBoard({
         </TabsList>
 
         {/* --- Hypotheses --- */}
-        <TabsContent value="hypotheses" className="flex-1 min-h-0 mt-6">
+        <TabsContent
+          value="hypotheses"
+          className="flex-1 min-h-0 mt-6 text-right"
+          dir="rtl"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-auto min-h-0">
             <AnimatePresence mode="popLayout">
               {hypotheses.map((hypothesis, index) => {
@@ -335,7 +349,7 @@ export default function HypothesisBoard({
                       </div>
                     )}
 
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-4 flex-row-reverse">
                       <div
                         className={cn(
                           "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
@@ -352,7 +366,7 @@ export default function HypothesisBoard({
                         />
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 text-right">
                         <h3
                           className={cn(
                             "text-lg font-bold mb-1",
@@ -375,7 +389,7 @@ export default function HypothesisBoard({
                         </p>
 
                         {isEliminated && justificationSummary && (
-                          <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1">
+                          <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1 justify-end">
                             <FileText className="w-3 h-3" />
                             <span>
                               تم الاستبعاد بناءً على: {justificationSummary}
@@ -412,28 +426,31 @@ export default function HypothesisBoard({
             </AnimatePresence>
           </div>
 
-          <div className="mt-6 p-4 bg-secondary/30 rounded-xl border border-border/30">
+          <div
+            className="mt-6 p-4 bg-secondary/30 rounded-xl border border-border/30 text-right"
+            dir="rtl"
+          >
             <p className="text-sm text-muted-foreground mb-3">
               <span className="font-medium text-foreground">للاستبعاد:</span>{" "}
               يجب تحديد الأدلة أو المقابلات أو البيانات التي أقنعتك بأن الفرضية
               غير صحيحة.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 justify-end">
               <Link href="/archive">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-primary/10 transition-colors cursor-pointer text-sm">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-primary/10 transition-colors cursor-pointer text-sm font-medium border border-border/40 shadow-sm">
                   <FileSearch className="w-4 h-4 text-primary" />
                   <span>أرشيف الملفات</span>
                 </div>
               </Link>
               <Link href="/meetings">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-accent/10 transition-colors cursor-pointer text-sm">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-accent/10 transition-colors cursor-pointer text-sm font-medium border border-border/40 shadow-sm">
                   <Users className="w-4 h-4 text-accent" />
                   <span>غرفة الاجتماعات</span>
                 </div>
               </Link>
               <button
                 onClick={() => setTab("data")}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card hover:bg-emerald-500/10 transition-colors text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card/80 hover:bg-emerald-500/10 transition-colors text-sm font-medium border border-border/40 shadow-sm"
               >
                 <BarChart3 className="w-4 h-4 text-emerald-500" />
                 <span>لوحة البيانات</span>
@@ -443,9 +460,13 @@ export default function HypothesisBoard({
         </TabsContent>
 
         {/* --- Data --- */}
-        <TabsContent value="data" className="flex-1 min-h-0 mt-6 overflow-auto">
+        <TabsContent
+          value="data"
+          className="flex-1 min-h-0 mt-6 overflow-auto text-right"
+          dir="rtl"
+        >
           <div className="space-y-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-row-reverse justify-end">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Database className="w-5 h-5 text-primary" />
               </div>
@@ -460,7 +481,7 @@ export default function HypothesisBoard({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass-card p-6 rounded-xl">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
+                  <h3 className="font-bold text-lg flex items-center gap-2 flex-row-reverse text-right">
                     <TrendingUp className="w-5 h-5 text-accent" />
                     تحليل الاستفسارات مقابل المبيعات
                   </h3>
@@ -511,7 +532,7 @@ export default function HypothesisBoard({
 
               <div className="glass-card p-6 rounded-xl">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
+                  <h3 className="font-bold text-lg flex items-center gap-2 flex-row-reverse text-right">
                     <BarChart3 className="w-5 h-5 text-primary" />
                     جودة الاستفسارات
                   </h3>
@@ -548,7 +569,7 @@ export default function HypothesisBoard({
             </div>
 
             <div className="bg-card rounded-xl border border-border/50 p-6">
-              <h2 className="font-bold text-lg flex items-center gap-2 mb-4">
+              <h2 className="font-bold text-lg flex items-center gap-2 mb-4 flex-row-reverse text-right">
                 <Lightbulb className="w-5 h-5 text-amber-500" />
                 الرؤى المتاحة
               </h2>
@@ -565,13 +586,13 @@ export default function HypothesisBoard({
                       <div
                         key={insight.id}
                         className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+                          "flex items-center justify-between p-4 rounded-xl border-2 transition-all flex-row-reverse gap-4",
                           discovered
                             ? "bg-emerald-500/10 border-emerald-500/30"
                             : "bg-secondary/30 border-border/50 hover:border-amber-500/30",
                         )}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3 flex-row-reverse text-right">
                           {discovered ? (
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                               <Check className="w-4 h-4 text-emerald-500" />
