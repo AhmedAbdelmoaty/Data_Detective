@@ -249,7 +249,7 @@ export default function HypothesisBoard({
       </header>
 
       <div
-        className="flex flex-wrap items-center gap-4 mb-6 justify-end text-right"
+        className="flex flex-wrap flex-row-reverse items-center gap-4 mb-6 justify-start text-right"
         dir="rtl"
       >
         <div className="bg-primary/10 px-4 py-2 rounded-lg">
@@ -266,7 +266,7 @@ export default function HypothesisBoard({
         {remainingCount === 1 && (
           <button
             onClick={() => setTab("report")}
-            className="bg-accent/35 text-foreground px-5 py-3 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-accent/45 transition-colors font-semibold ring-2 ring-accent/50 shadow-[0_0_18px_rgba(250,204,21,0.3)]"
+            className="bg-accent/35 text-foreground px-5 py-3 rounded-lg flex flex-row-reverse items-center justify-start gap-2 cursor-pointer hover:bg-accent/45 transition-colors font-semibold ring-2 ring-accent/50 shadow-[0_0_18px_rgba(250,204,21,0.3)] text-right"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full rounded-full bg-accent/60 opacity-75 animate-pulse" />
