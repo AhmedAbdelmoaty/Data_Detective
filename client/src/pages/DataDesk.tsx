@@ -96,8 +96,8 @@ export default function DataDesk() {
         </motion.div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border/50 p-6">
-        <h2 className="font-bold text-lg flex items-center gap-2 mb-4">
+      <div className="bg-card rounded-xl border border-border/50 p-6 text-right" dir="rtl">
+        <h2 className="font-bold text-lg flex items-center gap-2 mb-4 flex-row-reverse justify-end">
           <Lightbulb className="w-5 h-5 text-amber-500" />
           الرؤى المتاحة
         </h2>
@@ -113,13 +113,13 @@ export default function DataDesk() {
                 <div
                   key={insight.id}
                   className={cn(
-                    "flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+                    "flex items-center justify-between gap-4 p-4 rounded-xl border-2 transition-all",
                     discovered 
                       ? "bg-emerald-500/10 border-emerald-500/30" 
                       : "bg-secondary/30 border-border/50 hover:border-amber-500/30"
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 text-right">
                     {discovered ? (
                       <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                         <Check className="w-4 h-4 text-emerald-500" />

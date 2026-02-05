@@ -349,29 +349,7 @@ export default function HypothesisBoard({
                       </div>
                     )}
 
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="mt-1 flex justify-start">
-                        {isEliminated ? (
-                          <button
-                            onClick={() => restoreHypothesis(hypothesis.id)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
-                            data-testid={`button-restore-${hypothesis.id}`}
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            <span>استعادة</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEliminate(hypothesis)}
-                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-                            data-testid={`button-eliminate-${hypothesis.id}`}
-                          >
-                            <X className="w-4 h-4" />
-                            <span>استبعاد</span>
-                          </button>
-                        )}
-                      </div>
-
+                    <div className="flex items-start gap-4">
                       <div className="flex-1 min-w-0 text-right">
                         <div className="flex items-start gap-4 flex-row-reverse">
                           <div
@@ -422,6 +400,33 @@ export default function HypothesisBoard({
                             )}
                           </div>
                         </div>
+                      </div>
+
+                      <div
+                        className="self-stretch w-px bg-border/40"
+                        aria-hidden="true"
+                      />
+
+                      <div className="mt-1 flex justify-start">
+                        {isEliminated ? (
+                          <button
+                            onClick={() => restoreHypothesis(hypothesis.id)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary transition-colors text-sm"
+                            data-testid={`button-restore-${hypothesis.id}`}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            <span>استعادة</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEliminate(hypothesis)}
+                            className="flex items-center gap-2 flex-row-reverse px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
+                            data-testid={`button-eliminate-${hypothesis.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                            <span>استبعاد</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
